@@ -1,0 +1,43 @@
+{
+  "name": "quizlab",
+  "version": "0.0.1",
+  "description": "",
+  "keywords": [
+    "quizlab",
+    "quiz"
+  ],
+  "homepage": "https://github.com/popandr467/quizlab#readme",
+  "bugs": {
+    "url": "https://github.com/popandr467/quizlab/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/popandr467/quizlab.git"
+  },
+  "license": "GPL-3.0-or-later",
+  "author": "popandr467",
+  "type": "commonjs",
+  "main": "app.js",
+  "scripts": {
+    "test": "node app.js",
+    "start": "node app.js"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.0.2",
+    "@fastify/formbody": "^8.0.2",
+    "@fastify/jwt": "^10.0.0",
+    "@fastify/mysql": "^5.0.2",
+    "@fastify/static": "^9.1.2",
+    "@fastify/view": "^11.1.1",
+    "bcrypt": "^6.0.0",
+    "dotenv": "^17.4.2",
+    "ejs": "^5.0.2",
+    "fastify": "^5.8.5",
+    "fastify-autoload": "^3.12.0",
+    "qs": "^6.15.1",
+    "uuid": "^14.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
