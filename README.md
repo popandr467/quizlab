@@ -29,3 +29,17 @@ cd quizlab
 
 5. Запустите проект: `npm start`
 
+## Troubleshooting
+### 🛠 Native Modules Setup
+При ошибках компиляции (`node-gyp`, `bcrypt` и др.) установите системные зависимости для вашей ОС:
+
+| ОС | Команда / Инструкция |
+|---|---|
+| **Windows** | Установите [VS Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) + **Python 3** (обязательно добавьте в `PATH`) |
+| **Ubuntu/Debian** | `sudo apt update && sudo apt install -y build-essential python3` |
+| **RHEL/Fedora** | `sudo dnf install -y gcc gcc-c++ make python3` |
+| **Arch/Manjaro** | `sudo pacman -S base-devel python` |
+| **macOS** | `xcode-select --install` |
+
+> ⚡ После установки повторите `npm install`. Большинство модулей загружают готовые бинарники автоматически, компиляция требуется только при их отсутствии.
+
