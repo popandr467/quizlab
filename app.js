@@ -3,25 +3,9 @@ const fastify = require('fastify')({ logger: true });
 const bcrypt = require('bcrypt');
 const { v4: uuidv4 } = require('uuid');
 
-const HASH_ROUNDS=8;
-fastify.register(require('@fastify/view'), {
-  engine: { ejs: require('ejs') },
-  root: './views'
-});
+const {HASH_ROUNDS}=process.env; // Загружаем конфиг
 
-fastify.register(require('@fastify/cookie'), {
-  secret: process.env.COOKIE_SECRET, // Optional: for signed cookies
-  parseOptions: {}     // Optional: default parsing options
-})
-const qs = require('qs')
-fastify.register(require('@fastify/formbody'), { parser: str => qs.parse(str) })
-
-
-// Подключаем mysql и JWT
-require('./sqlinit')(fastify);
-require('./jwtinit')(fastify);
-// fastify.register(require('./sqlinit'),{});
-// fastify.register(require('./jwtinit'),{});
+require('./plugin-initiators/init-all')(fastify);
 
 // fastify.register(require('./routes/root'),{prefix:'/'});
 
@@ -31,7 +15,7 @@ fastify.get('/', async (request, reply)=>{
     const authData=(await fastify.get_auth_data(request)).authData;
     const authenticated=await fastify.check_auth(request);
     return reply.view('layout.ejs',{authData, title: "Homepage", body:(authData?`
-        <div class="
+        <div class></div>
     `:'')});
 });
 
@@ -122,7 +106,7 @@ fastify.get('/register', async (request, reply)=>{
     const authenticated=await fastify.check_auth(request);
     if(authenticated)reply.redirect('/logout');
     return reply.view('layout.ejs',{authData:null, title: "Registration", body:`
-        <div class="row justify-content-center align-items-center">
+    <div class="row justify-content-center align-items-center">
         <div class="col-lg-4 col-sm-6">
             <div class="card">
                 <div class="card-header bg-white">

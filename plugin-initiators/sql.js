@@ -73,10 +73,19 @@ async function createTables(fastify) {
   }
 }
 
-module.exports=async (fastify, opts)=>{
-  await fastify.register(require('@fastify/mysql'), {
+module.exports=(fastify)=>{
+  fastify.register(require('@fastify/mysql'), {
     promise: true,  // Используем async/await
     connectionString: process.env.DATABASE_URL
   });
-  await createTables(fastify);
+  fastify.ready(async (err) => {
+    if (err) {
+      console.error('Ошибка подключения к БД:', err);
+      process.exit(1);
+    }
+    
+    // Создаём таблицы при старте
+    await createTables(fastify);
+    console.log('✅ MariaDB готова к работе');
+  });
 }

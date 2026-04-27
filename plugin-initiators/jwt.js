@@ -1,4 +1,4 @@
-module.exports=async (fastify, opts) => {
+module.exports=async (fastify) => {
   await fastify.register(require('@fastify/jwt'), {
     secret: process.env.JWT_SECRET,
     cookie: {cookieName: 'token'}
