@@ -9,13 +9,28 @@ require('./plugin-initiators/init-all')(fastify);
 
 // fastify.register(require('./routes/root'),{prefix:'/'});
 
-// fastify.decorate
-
 fastify.get('/', async (request, reply)=>{
     const authData=(await fastify.get_auth_data(request)).authData;
     const authenticated=await fastify.check_auth(request);
     return reply.view('layout.ejs',{authData, title: "Homepage", body:(authData?`
-        <div class></div>
+    <div class="row justify-content-center align-items-center col-sm-12">
+        <div class="row col-xl-10 col-sm-12">
+            <div class="col-lg-6 col-sm-12">
+                <div class="card mb-2 overflow-y-auto" style="min-height:200px; max-height:60vh">
+                    <div class="card-header bg-white">
+                        <h4 class="mb-0">Ваши тесты</h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6 col-sm-12">
+                <div class="card mb-2" style="min-height:200px">
+                    <div class="card-header bg-white">
+                        <h4 class="mb-0">Статистика</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
     `:'')});
 });
 
