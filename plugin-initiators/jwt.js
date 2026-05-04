@@ -18,7 +18,7 @@ module.exports=async (fastify) => {
       try{
         const [[session=null]]=await conn.query('SELECT user_id FROM sessions WHERE id = ?',[token.sessionID]);
         if(!session)return {authData:null}
-        else return {authData:{name:token.name}};
+        else return {authData:{name:token.name, user_id:session.user_id}};
       }finally{
         conn.release();
       }
