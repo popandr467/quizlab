@@ -10,28 +10,91 @@ require('./plugin-initiators/init-all')(fastify);
 // fastify.register(require('./routes/root'),{prefix:'/'});
 
 fastify.get('/', async (request, reply)=>{
-    const authData=(await fastify.get_auth_data(request)).authData;
-    const authenticated=await fastify.check_auth(request);
-    return reply.view('layout.ejs',{authData, title: "Homepage", body:(authData?`
-    <div class="row justify-content-center align-items-center col-sm-12">
-        <div class="row col-xl-10 col-sm-12">
-            <div class="col-lg-6 col-sm-12">
-                <div class="card mb-2 overflow-y-auto" style="min-height:200px; max-height:60vh">
-                    <div class="card-header bg-white">
-                        <h4 class="mb-0">Ваши тесты</h4>
+    const {authData}=await fastify.get_auth_data(request);
+    if(authData){
+        let tests=[];
+        const conn=await fastify.mysql.getConnection();
+        try{
+            [tests]=await conn.query('SELECT id, title FROM tests WHERE author_id = ?', [authData.user_id]);
+        }catch(err){
+            conn.release();
+            throw err;
+        }
+        conn.release();
+        console.log(authData);
+        return reply.view('layout.ejs',{authData, title: "Homepage", body:(`
+        <div class="row justify-content-center align-items-center col-sm-12">
+            <div class="row col-sm-12">
+                <div class="col-lg-6 col-sm-12">
+                    <div class="card mb-2 overflow-y-auto" style="min-height:200px; max-height:60vh">
+                        <div class="card-header bg-white">
+                            <h4 class="mb-0">Ваши тесты</h4>
+                        </div>
+                        <div class="d-flex flex-column flex-grow-1 m-3">
+                            <div id="itemsListContainer" class="d-flex flex-column gap-2">
+                                ${tests.map(i=>`
+                                <div class="item-object d-flex justify-content-between align-items-center p-3 bg-white border rounded-3 shadow-sm">
+                                    <span class="fw-medium text-dark">${i.title}</span>
+                                    <button class="btn btn-sm btn-outline-danger delete-btn" type="button">
+                                        <i class="bi bi-trash3"></i> Удалить
+                                    </button>
+                                </div>`)}
+                                <!--<div class="item-object d-flex justify-content-between align-items-center p-3 bg-white border rounded-3 shadow-sm">
+                                    <span class="fw-medium text-dark">Проект "Весенний марафон"</span>
+                                    <button class="btn btn-sm btn-outline-danger delete-btn" type="button">
+                                        <i class="bi bi-trash3"></i> Удалить
+                                    </button>
+                                </div>
+                                <div class="item-object d-flex justify-content-between align-items-center p-3 bg-white border rounded-3 shadow-sm">
+                                    <span class="fw-medium text-dark">Документация API v2</span>
+                                    <button class="btn btn-sm btn-outline-danger delete-btn" type="button">
+                                        <i class="bi bi-trash3"></i> Удалить
+                                    </button>
+                                </div>
+                                <div class="item-object d-flex justify-content-between align-items-center p-3 bg-white border rounded-3 shadow-sm">
+                                    <span class="fw-medium text-dark">Аналитика продаж</span>
+                                    <button class="btn btn-sm btn-outline-danger delete-btn" type="button">
+                                        <i class="bi bi-trash3"></i> Удалить
+                                    </button>
+                                </div>
+                                <div class="item-object d-flex justify-content-between align-items-center p-3 bg-white border rounded-3 shadow-sm">
+                                    <span class="fw-medium text-dark">Редизайн главной страницы</span>
+                                    <button class="btn btn-sm btn-outline-danger delete-btn" type="button">
+                                        <i class="bi bi-trash3"></i> Удалить
+                                    </button>
+                                </div>
+                                <div class="item-object d-flex justify-content-between align-items-center p-3 bg-white border rounded-3 shadow-sm">
+                                    <span class="fw-medium text-dark">Отчет по KPI за март</span>
+                                    <button class="btn btn-sm btn-outline-danger delete-btn" type="button">
+                                        <i class="bi bi-trash3"></i> Удалить
+                                    </button>
+                                </div>-->
+                            </div>
+                            <div class="mt-3">
+                                <a id="addItemBtn" class="btn btn-primary btn-sm w-100" href="/tests/create">
+                                    <i class="bi bi-plus-circle"></i> Новый тест
+                                </a>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
-            <div class="col-lg-6 col-sm-12">
-                <div class="card mb-2" style="min-height:200px">
-                    <div class="card-header bg-white">
-                        <h4 class="mb-0">Статистика</h4>
+                <div class="col-lg-6 col-sm-12">
+                    <div class="card mb-2 column" style="min-height:200px">
+                        <div class="card-header bg-white">
+                            <h4 class="mb-0">Статистика</h4>
+                        </div>
+                        <div class="d-flex flex-column justify-content-center align-items-center flex-grow-1">
+                            Скоро появится...
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
-    `:'')});
+        `)});
+    } else {
+        return reply.view('layout.ejs',{authData, title: "Homepage", body:''});
+    }
+    
 });
 
 fastify.get('/login', async (request, reply)=>{
@@ -205,7 +268,9 @@ fastify.get('/logout', async (request, reply)=>{
     return reply.redirect('/')
 });
 
+// fastify.get('/tests/create', async (request, reply)=>{
 
+// })
 
 const start = async () => {
 //   await fastify.ready();
