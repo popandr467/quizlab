@@ -3,7 +3,7 @@ const fastify = require('fastify')({ logger: true });
 const bcrypt = require('bcrypt');
 const { v4: uuidv4 } = require('uuid');
 
-const {HASH_ROUNDS}=process.env; // Загружаем конфиг
+const HASH_ROUNDS=Number(process.env.HASH_ROUNDS); // Загружаем конфиг
 
 require('./plugin-initiators/init-all')(fastify);
 
@@ -193,6 +193,7 @@ fastify.post('/register',{
         return reply.redirect('/');
     }catch(err){
         // conn.release();
+        console.log(err.stack);
         throw err;
     }finally{
         conn.release();
