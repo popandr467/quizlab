@@ -1,36 +1,63 @@
-module.exports=async (fastify) => {
+module.exports = async (fastify) => {
   await fastify.register(require('@fastify/jwt'), {
     secret: process.env.JWT_SECRET,
-    cookie: {cookieName: 'token'}
-  });
-  fastify.decorate('authenticate', async (request, reply) => {
-    try {
-      const res=await request.jwtVerify();
-    } catch (err) {
-      reply.status(401).send({ error: 'Не авторизован' });
+    cookie: {
+      cookieName: 'token',
+      signed: false
     }
   });
-  fastify.decorate('get_auth_data', async (request, reply)=>{
+
+  fastify.decorate('get_auth_data', async (request) => {
     try {
       const token = await request.jwtVerify();
-      console.log(token);
-      const conn=await fastify.mysql.getConnection();
-      try{
-        const [[session=null]]=await conn.query('SELECT user_id FROM sessions WHERE id = ?',[token.sessionID]);
-        if(!session)return {authData:null}
-        else return {authData:{name:token.name, user_id:session.user_id}};
-      }finally{
+
+      if (!token?.sessionID) {
+        return { authData: null };
+      }
+
+      const conn = await fastify.mysql.getConnection();
+
+      try {
+        const [[session = null]] = await conn.query(
+          `
+          SELECT sessions.user_id, users.name
+          FROM sessions
+          JOIN users ON users.id = sessions.user_id
+          WHERE sessions.id = ?
+          `,
+          [token.sessionID]
+        );
+
+        if (!session) {
+          return { authData: null };
+        }
+
+        return {
+          authData: {
+            id: session.user_id,
+            name: session.name
+          }
+        };
+      } finally {
         conn.release();
       }
-    } catch (err) {
-      console.log('-------------------');
-      console.log(err)
-      return {authData:null};
+    } catch {
+      return { authData: null };
     }
   });
-  fastify.decorate('check_auth', async (request, reply)=>{
-    const a=await fastify.get_auth_data(request, reply)
-    console.log(a);
-    return (a.authData)!==null;
+
+  fastify.decorate('check_auth', async (request) => {
+    const { authData } = await fastify.get_auth_data(request);
+    return authData !== null;
   });
-}
+
+  fastify.decorate('authenticate', async (request, reply) => {
+    const { authData } = await fastify.get_auth_data(request);
+
+    if (!authData) {
+      return reply.code(401).send({ error: 'Не авторизован' });
+    }
+
+    request.user = authData;
+  });
+};

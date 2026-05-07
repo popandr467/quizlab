@@ -1,0 +1,14 @@
+body {
+  min-height: 100vh;
+  background: #f8f9fa;
+}
+
+.card,
+.list-group-item,
+.alert {
+  border-radius: 0.75rem;
+}
+
+.navbar-brand {
+  letter-spacing: 0.01em;
+}
