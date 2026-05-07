@@ -19,21 +19,19 @@
   "type": "commonjs",
   "main": "app.js",
   "scripts": {
-  "dev:api": "nodemon app.js",
-  "dev:frontend": "npm run dev --prefix frontend",
-  "build:frontend": "npm run build --prefix frontend",
-  "start": "node app.js"
-},
+    "dev:api": "nodemon app.js",
+    "dev:frontend": "npm run dev --prefix frontend",
+    "build:frontend": "npm run build --prefix frontend",
+    "start": "node app.js"
+  },
   "dependencies": {
     "@fastify/cookie": "^11.0.2",
     "@fastify/formbody": "^8.0.2",
     "@fastify/jwt": "^10.0.0",
     "@fastify/mysql": "^5.0.2",
     "@fastify/static": "^9.1.2",
-    "@fastify/view": "^11.1.1",
     "bcrypt": "^6.0.0",
     "dotenv": "^17.4.2",
-    "ejs": "^5.0.2",
     "fastify": "^5.8.5",
     "fastify-autoload": "^3.12.0",
     "qs": "^6.15.1",
