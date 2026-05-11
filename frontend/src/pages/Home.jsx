@@ -55,76 +55,106 @@ export default function Home({ user }) {
   }
 
   return (
-    <>
-      <div className="d-flex align-items-center justify-content-between mb-3">
-        <div>
-          <h1 className="h3 mb-1">Ваши тесты</h1>
-          <p className="text-muted mb-0">
-            Управляйте своими тестами и смотрите статистику.
-          </p>
-        </div>
-
-        <Link className="btn btn-primary" to="/tests/create">
-          <i className="bi bi-plus-circle me-1" />
-          Новый тест
-        </Link>
+  <>
+    <div className="d-flex align-items-center justify-content-between mb-3">
+      <div>
+        <h1 className="h3 mb-1">Ваши тесты</h1>
+        <p className="text-muted mb-0">
+          Управляйте своими тестами и смотрите статистику.
+        </p>
       </div>
 
-      {loading && (
-        <div className="alert alert-secondary">
-          Загружаем тесты...
-        </div>
-      )}
+      <Link className="btn btn-primary" to="/tests/create">
+        <i className="bi bi-plus-circle me-1" />
+        Новый тест
+      </Link>
+    </div>
 
-      {error && (
-        <div className="alert alert-danger">
-          {error}
-        </div>
-      )}
+    <div className="row g-4">
+      <div className="col-lg-6">
+        <section className="card h-100">
+          <div className="card-body">
+            <h2 className="h5 mb-3">Список тестов</h2>
 
-      {!loading && !error && tests.length === 0 && (
-        <div className="alert alert-info">
-          У вас пока нет тестов.
-        </div>
-      )}
-
-      {!loading && tests.length > 0 && (
-        <div className="list-group mb-4">
-          {tests.map((test) => (
-            <div
-              className="list-group-item list-group-item-action"
-              key={test.id}
-            >
-              <div className="d-flex w-100 justify-content-between">
-                <h5 className="mb-1">{test.title}</h5>
-                <small className="text-muted">
-                  #{test.id}
-                </small>
+            {loading && (
+              <div className="alert alert-secondary">
+                Загружаем тесты...
               </div>
+            )}
 
-              {test.description && (
-                <p className="mb-1">
-                  {test.description}
-                </p>
-              )}
+            {error && (
+              <div className="alert alert-danger">
+                {error}
+              </div>
+            )}
 
-              <small className="text-muted">
-                Попыток: {test.max_attempts ?? 1}
-                {test.time_limit ? ` · Лимит: ${test.time_limit} мин.` : ''}
-              </small>
+            {!loading && !error && tests.length === 0 && (
+              <div className="alert alert-info mb-0">
+                У вас пока нет тестов.
+              </div>
+            )}
+
+            {!loading && tests.length > 0 && (
+              <div className="list-group">
+                {tests.map((test) => (
+                  <div
+                    className="list-group-item list-group-item-action"
+                    key={test.id}
+                  >
+                    <div className="d-flex w-100 justify-content-between">
+                      <h5 className="mb-1">{test.title}</h5>
+                      <small className="text-muted">
+                        #{test.id}
+                      </small>
+                    </div>
+
+                    {test.description && (
+                      <p className="mb-1">
+                        {test.description}
+                      </p>
+                    )}
+
+                    <small className="text-muted">
+                      Попыток: {test.max_attempts ?? 1}
+                      {test.time_limit ? ` · Лимит: ${test.time_limit} мин.` : ''}
+                    </small>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+      </div>
+
+      <div className="col-lg-6">
+        <section className="card h-100">
+          <div className="card-body">
+            <h2 className="h5 mb-3">Статистика</h2>
+
+            <div className="mb-3">
+              <div className="text-muted small">Всего тестов</div>
+              <div className="fs-3 fw-semibold">
+                {tests.length}
+              </div>
             </div>
-          ))}
-        </div>
-      )}
 
-      <section className="card">
-        <div className="card-body">
-          <h2 className="h5">Статистика</h2>
-          <p className="mb-0 text-muted">
-            Здесь позже можно вывести количество попыток, средний балл и последние прохождения.
-          </p>
-        </div>
-      </section>
-    </>
-  );
+            <div className="mb-3">
+              <div className="text-muted small">Попытки</div>
+              <div className="fs-5">
+                Скоро появится
+              </div>
+            </div>
+
+            <div>
+              <div className="text-muted small">Средний результат</div>
+              <div className="fs-5">
+                Скоро появится
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </>
+);
 }
