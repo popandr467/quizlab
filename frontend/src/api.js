@@ -26,6 +26,10 @@ export const api = {
     return request('/api/tests');
   },
 
+  profile(username) {
+    return request(`/api/profiles/${encodeURIComponent(username)}`);
+  },
+
   login(email, password) {
     return request('/api/login', {
       method: 'POST',
@@ -33,10 +37,10 @@ export const api = {
     });
   },
 
-  register(uname, email, password) {
+  register(uname, username, email, password) {
     return request('/api/register', {
       method: 'POST',
-      body: JSON.stringify({ uname, email, password })
+      body: JSON.stringify({ uname, username, email, password })
     });
   },
 

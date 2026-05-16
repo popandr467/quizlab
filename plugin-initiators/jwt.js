@@ -20,7 +20,7 @@ module.exports = async (fastify) => {
       try {
         const [[session = null]] = await conn.query(
           `
-          SELECT sessions.user_id, users.name
+          SELECT sessions.user_id, users.name, users.username
           FROM sessions
           JOIN users ON users.id = sessions.user_id
           WHERE sessions.id = ?
@@ -35,7 +35,8 @@ module.exports = async (fastify) => {
         return {
           authData: {
             id: session.user_id,
-            name: session.name
+            name: session.name,
+            username: session.username
           }
         };
       } finally {

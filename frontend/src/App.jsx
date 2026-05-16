@@ -10,6 +10,7 @@ import Register from './pages/Register';
 import CreateTest from './pages/CreateTest';
 import Reports from './pages/Reports';
 import NotFound from './pages/NotFound';
+import Profile from './pages/Profile';
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -31,7 +32,7 @@ export default function App() {
   if (authLoading) {
     return (
       <div className="container py-4">
-        Загрузка...
+        Загруза...
       </div>
     );
   }
@@ -79,6 +80,8 @@ export default function App() {
                 : <Navigate to="/login" replace />
             }
           />
+
+          <Route path="/profiles/:username" element={<Profile />} />
 
           <Route path="*" element={<NotFound />} />
         </Routes>

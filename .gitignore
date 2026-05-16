@@ -140,3 +140,5 @@ vite.config.ts.timestamp-*
 
 # experiments with HTML pages and elements
 html-trials/*
+
+start-all.sh

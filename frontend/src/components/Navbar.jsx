@@ -65,10 +65,11 @@ export default function Navbar({ user, setUser }) {
             {user ? (
               <>
                 <li className="nav-item">
-                  <span className="nav-link">
+                  <NavLink className="nav-link" to={`/profiles/${user.username}`}>
                     <i className="bi bi-person-circle me-1" />
-                    {user.name}
-                  </span>
+                    <span className="d-none d-lg-inline me-1">{user.name}</span>
+                    {/* <span className="fw-semibold">@{user.username}</span> */}
+                  </NavLink>
                 </li>
 
                 <li className="nav-item">

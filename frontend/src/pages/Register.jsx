@@ -13,6 +13,8 @@ export default function Register({ setUser }) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const [username, setUsername] = useState('');
+
   async function handleSubmit(event) {
     event.preventDefault();
 
@@ -20,15 +22,24 @@ export default function Register({ setUser }) {
     setLoading(true);
 
     try {
-      const data = await api.register(uname, email, password);
+      const data = await api.register(uname, username, email, password);
       setUser(data.user);
-      navigate('/');
+      navigate(`/profiles/${data.user.username}`);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
   }
+
+  function handleUsernameChange(event) {
+  setUsername(
+    event.target.value
+      .replace(/^@+/, '')
+      .replace(/\s+/g, '')
+      .toLowerCase()
+  );
+}
 
   return (
     <div className="row justify-content-center">
@@ -57,6 +68,32 @@ export default function Register({ setUser }) {
                   onChange={(event) => setUname(event.target.value)}
                   required
                 />
+              </div>
+
+              <div className="mb-3">
+                <label className="form-label" htmlFor="username">
+                  Username
+                </label>
+
+                <div className="input-group">
+                  <span className="input-group-text">@</span>
+
+                  <input
+                    className="form-control"
+                    id="username"
+                    type="text"
+                    autoComplete="username"
+                    value={username}
+                    onChange={handleUsernameChange}
+                    pattern="[a-z0-9._-]{3,30}"
+                    maxLength={30}
+                    required
+                  />
+                </div>
+
+                <div className="form-text">
+                  Будет отображаться как @{username || 'username'}, а ссылка будет /profiles/{username || 'username'}.
+                </div>
               </div>
 
               <div className="mb-3">

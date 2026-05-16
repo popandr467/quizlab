@@ -2,6 +2,7 @@ const bcrypt = require('bcrypt');
 const { v4: uuidv4 } = require('uuid');
 
 const HASH_ROUNDS = Number(process.env.HASH_ROUNDS || 8);
+const USERNAME_RE = /^[a-z0-9._-]{3,30}$/;
 
 function getCookieOptions() {
   return {
@@ -12,13 +13,74 @@ function getCookieOptions() {
   };
 }
 
+function normalizeUsername(value) {
+  const raw = String(value ?? '').trim();
+  const withoutAt = raw.startsWith('@') ? raw.slice(1) : raw;
+  const username = withoutAt.toLowerCase();
+
+  if (!username) {
+    return { error: 'Введите username' };
+  }
+
+  if (/\s/.test(withoutAt)) {
+    return { error: 'Username не должен содержать пробелы' };
+  }
+
+  if (withoutAt.includes('@')) {
+    return { error: 'Символ @ используется только в начале username' };
+  }
+
+  if (!USERNAME_RE.test(username)) {
+    return {
+      error:
+        'Username должен быть длиной 3–30 символов и может содержать латинские буквы, цифры, ".", "_" и "-"'
+    };
+  }
+
+  return { username };
+}
+
+function publicUser(user) {
+  return {
+    id: user.id,
+    name: user.name,
+    username: user.username
+  };
+}
+
 module.exports = async function apiRoutes(fastify) {
   fastify.get('/me', async (request) => {
     const { authData } = await fastify.get_auth_data(request);
+    return { user: authData };
+  });
 
-    return {
-      user: authData
-    };
+  fastify.get('/profiles/:username', async (request, reply) => {
+    const { username, error } = normalizeUsername(request.params.username);
+
+    if (error) {
+      return reply.code(404).send({ error: 'Профиль не найден' });
+    }
+
+    const conn = await fastify.mysql.getConnection();
+
+    try {
+      const [[profile = null]] = await conn.query(
+        `
+        SELECT id, name, username, created_at
+        FROM users
+        WHERE username = ?
+        `,
+        [username]
+      );
+
+      if (!profile) {
+        return reply.code(404).send({ error: 'Профиль не найден' });
+      }
+
+      return { profile };
+    } finally {
+      conn.release();
+    }
   });
 
   fastify.get('/tests', async (request, reply) => {
@@ -60,11 +122,12 @@ module.exports = async function apiRoutes(fastify) {
     }
   }, async (request, reply) => {
     const { email, password } = request.body;
+
     const conn = await fastify.mysql.getConnection();
 
     try {
       const [[user = null]] = await conn.query(
-        'SELECT id, password_hash, name FROM users WHERE email = ?',
+        'SELECT id, password_hash, name, username FROM users WHERE email = ?',
         [email]
       );
 
@@ -88,16 +151,14 @@ module.exports = async function apiRoutes(fastify) {
       const token = fastify.jwt.sign({
         sessionID,
         id: user.id,
-        name: user.name
+        name: user.name,
+        username: user.username
       });
 
       reply.setCookie('token', token, getCookieOptions());
 
       return {
-        user: {
-          id: user.id,
-          name: user.name
-        }
+        user: publicUser(user)
       };
     } finally {
       conn.release();
@@ -108,21 +169,31 @@ module.exports = async function apiRoutes(fastify) {
     schema: {
       body: {
         type: 'object',
-        required: ['uname', 'email', 'password'],
+        required: ['uname', 'username', 'email', 'password'],
         properties: {
           uname: { type: 'string', minLength: 1 },
+          username: { type: 'string', minLength: 1 },
           email: { type: 'string', format: 'email' },
           password: { type: 'string', minLength: 1 }
         }
       }
     }
   }, async (request, reply) => {
-    const { uname, email, password } = request.body;
+    const { uname, username: usernameRaw, email, password } = request.body;
+
     const name = uname.trim();
 
     if (!name) {
       return reply.code(400).send({ error: 'Введите имя' });
     }
+
+    const normalized = normalizeUsername(usernameRaw);
+
+    if (normalized.error) {
+      return reply.code(400).send({ error: normalized.error });
+    }
+
+    const username = normalized.username;
 
     const conn = await fastify.mysql.getConnection();
 
@@ -130,8 +201,8 @@ module.exports = async function apiRoutes(fastify) {
       const passwordHash = await bcrypt.hash(password, HASH_ROUNDS);
 
       const [result] = await conn.query(
-        'INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)',
-        [name, email, passwordHash]
+        'INSERT INTO users (name, username, email, password_hash) VALUES (?, ?, ?, ?)',
+        [name, username, email, passwordHash]
       );
 
       const userId = result.insertId;
@@ -142,22 +213,32 @@ module.exports = async function apiRoutes(fastify) {
         [sessionID, userId]
       );
 
+      const user = {
+        id: userId,
+        name,
+        username
+      };
+
       const token = fastify.jwt.sign({
         sessionID,
         id: userId,
-        name
+        name,
+        username
       });
 
       reply.setCookie('token', token, getCookieOptions());
 
-      return {
-        user: {
-          id: userId,
-          name
-        }
-      };
+      return { user };
     } catch (error) {
       if (error.code === 'ER_DUP_ENTRY') {
+        const message = String(error.sqlMessage || '');
+
+        if (message.includes('username') || message.includes('uq_users_username')) {
+          return reply.code(409).send({
+            error: 'Пользователь с таким username уже существует'
+          });
+        }
+
         return reply.code(409).send({
           error: 'Пользователь с таким email уже существует'
         });
