@@ -1,27 +1,27 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 
-import { api } from '../api';
+import { api } from "../api";
 
 export default function Login({ setUser }) {
   const navigate = useNavigate();
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(event) {
     event.preventDefault();
 
-    setError('');
+    setError("");
     setLoading(true);
 
     try {
       const data = await api.login(email, password);
       setUser(data.user);
-      navigate('/');
+      navigate("/");
     } catch (err) {
       setError(err.message);
     } finally {
@@ -36,11 +36,7 @@ export default function Login({ setUser }) {
           <div className="card-body">
             <h1 className="h4 mb-3">Вход в систему</h1>
 
-            {error && (
-              <div className="alert alert-danger">
-                {error}
-              </div>
-            )}
+            {error && <div className="alert alert-danger">{error}</div>}
 
             <form onSubmit={handleSubmit}>
               <div className="mb-3">
@@ -78,7 +74,7 @@ export default function Login({ setUser }) {
                 type="submit"
                 disabled={loading}
               >
-                {loading ? 'Входим...' : 'Войти'}
+                {loading ? "Входим..." : "Войти"}
               </button>
             </form>
 

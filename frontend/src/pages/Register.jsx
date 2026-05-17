@@ -1,24 +1,24 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 
-import { api } from '../api';
+import { api } from "../api";
 
 export default function Register({ setUser }) {
   const navigate = useNavigate();
 
-  const [uname, setUname] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [uname, setUname] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const [username, setUsername] = useState('');
+  const [username, setUsername] = useState("");
 
   async function handleSubmit(event) {
     event.preventDefault();
 
-    setError('');
+    setError("");
     setLoading(true);
 
     try {
@@ -33,13 +33,10 @@ export default function Register({ setUser }) {
   }
 
   function handleUsernameChange(event) {
-  setUsername(
-    event.target.value
-      .replace(/^@+/, '')
-      .replace(/\s+/g, '')
-      .toLowerCase()
-  );
-}
+    setUsername(
+      event.target.value.replace(/^@+/, "").replace(/\s+/g, "").toLowerCase(),
+    );
+  }
 
   return (
     <div className="row justify-content-center">
@@ -48,11 +45,7 @@ export default function Register({ setUser }) {
           <div className="card-body">
             <h1 className="h4 mb-3">Регистрация</h1>
 
-            {error && (
-              <div className="alert alert-danger">
-                {error}
-              </div>
-            )}
+            {error && <div className="alert alert-danger">{error}</div>}
 
             <form onSubmit={handleSubmit}>
               <div className="mb-3">
@@ -92,7 +85,8 @@ export default function Register({ setUser }) {
                 </div>
 
                 <div className="form-text">
-                  Будет отображаться как @{username || 'username'}, а ссылка будет /profiles/{username || 'username'}.
+                  Будет отображаться как @{username || "username"}, а ссылка
+                  будет /profiles/{username || "username"}.
                 </div>
               </div>
 
@@ -131,7 +125,7 @@ export default function Register({ setUser }) {
                 type="submit"
                 disabled={loading}
               >
-                {loading ? 'Регистрируем...' : 'Зарегистрироваться'}
+                {loading ? "Регистрируем..." : "Зарегистрироваться"}
               </button>
             </form>
 

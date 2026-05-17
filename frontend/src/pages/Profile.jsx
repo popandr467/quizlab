@@ -1,19 +1,20 @@
-import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { api } from '../api';
+import { useEffect, useState } from "react";
+import { Link, useParams } from "react-router-dom";
+import { api } from "../api";
 
 export default function Profile() {
   const { username } = useParams();
 
   const [profile, setProfile] = useState(null);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
-    setError('');
+    setError("");
 
-    api.profile(username)
+    api
+      .profile(username)
       .then((data) => {
         setProfile(data.profile);
       })
@@ -58,7 +59,9 @@ export default function Profile() {
               </div>
 
               <div>
-                <h1 className="h4 mb-1">{profile.name || `@${profile.username}`}</h1>
+                <h1 className="h4 mb-1">
+                  {profile.name || `@${profile.username}`}
+                </h1>
                 <div className="text-muted">@{profile.username}</div>
               </div>
             </div>
@@ -66,8 +69,8 @@ export default function Profile() {
             <hr />
 
             <dl className="row mb-0">
-              <dt className="col-sm-4">ID</dt>
-              <dd className="col-sm-8">{profile.id}</dd>
+              {/* <dt className="col-sm-4">ID</dt>
+              <dd className="col-sm-8">{profile.id}</dd> */}
 
               <dt className="col-sm-4">Дата регистрации</dt>
               <dd className="col-sm-8">

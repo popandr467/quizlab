@@ -1,17 +1,17 @@
 async function request(path, options = {}) {
   const response = await fetch(path, {
-    credentials: 'include',
+    credentials: "include",
     headers: {
-      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
-      ...(options.headers || {})
+      ...(options.body ? { "Content-Type": "application/json" } : {}),
+      ...(options.headers || {}),
     },
-    ...options
+    ...options,
   });
 
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
-    throw new Error(data?.error || 'Ошибка запроса');
+    throw new Error(data?.error || "Ошибка запроса");
   }
 
   return data;
@@ -19,11 +19,11 @@ async function request(path, options = {}) {
 
 export const api = {
   me() {
-    return request('/api/me');
+    return request("/api/me");
   },
 
   tests() {
-    return request('/api/tests');
+    return request("/api/tests");
   },
 
   profile(username) {
@@ -31,22 +31,22 @@ export const api = {
   },
 
   login(email, password) {
-    return request('/api/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password })
+    return request("/api/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
     });
   },
 
   register(uname, username, email, password) {
-    return request('/api/register', {
-      method: 'POST',
-      body: JSON.stringify({ uname, username, email, password })
+    return request("/api/register", {
+      method: "POST",
+      body: JSON.stringify({ uname, username, email, password }),
     });
   },
 
   logout() {
-    return request('/api/logout', {
-      method: 'POST'
+    return request("/api/logout", {
+      method: "POST",
     });
-  }
+  },
 };

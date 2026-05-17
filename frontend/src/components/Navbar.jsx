@@ -1,5 +1,5 @@
-import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { api } from '../api';
+import { Link, NavLink, useNavigate } from "react-router-dom";
+import { api } from "../api";
 
 export default function Navbar({ user, setUser }) {
   const navigate = useNavigate();
@@ -9,7 +9,7 @@ export default function Navbar({ user, setUser }) {
       await api.logout();
     } finally {
       setUser(null);
-      navigate('/');
+      navigate("/");
     }
   }
 
@@ -65,7 +65,10 @@ export default function Navbar({ user, setUser }) {
             {user ? (
               <>
                 <li className="nav-item">
-                  <NavLink className="nav-link" to={`/profiles/${user.username}`}>
+                  <NavLink
+                    className="nav-link"
+                    to={`/profiles/${user.username}`}
+                  >
                     <i className="bi bi-person-circle me-1" />
                     <span className="d-none d-lg-inline me-1">{user.name}</span>
                     {/* <span className="fw-semibold">@{user.username}</span> */}

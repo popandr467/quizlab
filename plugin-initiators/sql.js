@@ -75,25 +75,25 @@ async function createTables(fastify) {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
 
-    console.log('✅ Таблицы созданы/проверены');
+    console.log("✅ Таблицы созданы/проверены");
   } finally {
     connection.release();
   }
 }
 
 module.exports = (fastify) => {
-  fastify.register(require('@fastify/mysql'), {
+  fastify.register(require("@fastify/mysql"), {
     promise: true,
-    connectionString: process.env.DATABASE_URL
+    connectionString: process.env.DATABASE_URL,
   });
 
   fastify.ready(async (err) => {
     if (err) {
-      console.error('Ошибка подключения к БД:', err);
+      console.error("Ошибка подключения к БД:", err);
       process.exit(1);
     }
 
     await createTables(fastify);
-    console.log('✅ MariaDB готова к работе');
+    console.log("✅ MariaDB готова к работе");
   });
 };
