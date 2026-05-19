@@ -57,6 +57,13 @@ export default function Navbar({ user, setUser }) {
                     Отчёты
                   </NavLink>
                 </li>
+
+                <li className="nav-item">
+                  <NavLink className="nav-link" to="/test-page">
+                    <i className="bi bi-pencil me-1" />
+                    Тестовая страница
+                  </NavLink>
+                </li>
               </>
             )}
           </ul>

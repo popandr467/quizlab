@@ -49,4 +49,11 @@ export const api = {
       method: "POST",
     });
   },
+
+  addTest(data) {
+    return request("/api/addtest", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
 };

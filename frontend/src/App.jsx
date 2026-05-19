@@ -11,6 +11,7 @@ import CreateTest from "./pages/CreateTest";
 import Reports from "./pages/Reports";
 import NotFound from "./pages/NotFound";
 import Profile from "./pages/Profile";
+import TestPage from "./pages/TestPage";
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -71,7 +72,7 @@ export default function App() {
           />
 
           <Route path="/profiles/:username" element={<Profile />} />
-
+          <Route path="/test-page" element={<TestPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>

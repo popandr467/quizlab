@@ -285,4 +285,130 @@ module.exports = async function apiRoutes(fastify) {
 
     return { ok: true };
   });
+
+  fastify.post(
+    "/addtest",
+    {
+      schema: {
+        body: {
+          type: "object",
+          required: [
+            "deadline",
+            "timeLimit",
+            "name",
+            "description",
+            "attemptsCount",
+            "shuffleQuestions",
+            "showResult",
+            "showAnswers",
+            "questions",
+          ],
+          properties: {
+            deadline: { type: "string" },
+            timeLimit: { type: "number" },
+            name: { type: "string" },
+            description: { type: "string" },
+            attemptsCount: { type: "number" },
+            shuffleQuestions: { type: "boolean" },
+            showResult: { type: "boolean" },
+            showAnswers: { type: "boolean" },
+            questions: {
+              type: "array",
+              minItems: 1,
+              items: {
+                type: "object",
+                required: ["title", "type"],
+                properties: {
+                  title: { type: "string" },
+                  type: { type: "string" },
+                  points: { type: "number", minimum: 0 },
+                  correctAnswer: { type: "string" },
+                  options: {
+                    type: "object",
+                    required: ["correct", "variants"],
+                    properties: {
+                      correct: { type: "number" },
+                      variants: {
+                        type: "array",
+                        items: { type: "string" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            // uname: { type: "string", minLength: 1 },
+            // username: { type: "string", minLength: 1 },
+            // email: { type: "string", format: "email" },
+            // password: { type: "string", minLength: 1 },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const { authData } = await fastify.get_auth_data(request);
+
+      if (!authData) {
+        return reply.code(401).send({ error: "Не авторизован" });
+      }
+
+      const conn = await fastify.mysql.getConnection();
+
+      try {
+        const {
+          deadline,
+          timeLimit,
+          name,
+          description,
+          attemptsCount,
+          shuffleQuestions,
+          showResult,
+          showAnswers,
+          questions,
+        } = request.body;
+        const [result] = await conn.query(
+          `
+        INSERT INTO tests (title,description,author_id,max_attempts,time_limit,created_at)
+        VALUES (?,?,?,?,?,?)
+        `,
+          [
+            name,
+            description,
+            authData.id,
+            attemptsCount,
+            timeLimit,
+            new Date(),
+          ],
+        );
+
+        const test_id = result.insertId;
+        for (const {
+          title,
+          type,
+          points,
+          correctAnswer,
+          options,
+        } of questions) {
+          if (type === "text")
+            await conn.query(
+              `
+          INSERT INTO questions (test_id,text,type,points,correct_answer)
+          VALUES (?,?,?,?,?)
+          `,
+              [test_id, title, "text", points, correctAnswer],
+            );
+          else if (type === "choice")
+            await conn.query(
+              `
+          INSERT INTO questions (test_id,text,type,points,options)
+          VALUES (?,?,?,?,?)
+          `,
+              [test_id, title, "choice", points, JSON.stringify(options)],
+            );
+        }
+      } finally {
+        conn.release();
+      }
+    },
+  );
 };
