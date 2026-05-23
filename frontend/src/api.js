@@ -56,4 +56,19 @@ export const api = {
       body: JSON.stringify(data),
     });
   },
+
+  testForPassing(id) {
+    return request(`/api/tests/${encodeURIComponent(id)}/take`);
+  },
+
+  submitTest(id, answers) {
+    return request(`/api/tests/${encodeURIComponent(id)}/submit`, {
+      method: "POST",
+      body: JSON.stringify({ answers }),
+    });
+  },
+
+  attempts() {
+    return request("/api/attempts");
+  },
 };

@@ -106,12 +106,17 @@ export default function Home({ user }) {
                         <p className="mb-1">{test.description}</p>
                       )}
 
-                      <small className="text-muted">
+                      <p className="text-muted">
                         Попыток: {test.max_attempts ?? 1}
                         {test.time_limit
                           ? ` · Лимит: ${test.time_limit} мин.`
                           : ""}
-                      </small>
+                      </p>
+                      <div>
+                        <Link className="btn btn-sm btn-primary" to={`/tests/${test.id}/take`}>
+                          Пройти
+                        </Link>
+                      </div>
                     </div>
                   ))}
                 </div>

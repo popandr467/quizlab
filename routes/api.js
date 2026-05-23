@@ -4,6 +4,89 @@ const { v4: uuidv4 } = require("uuid");
 const HASH_ROUNDS = Number(process.env.HASH_ROUNDS || 8);
 const USERNAME_RE = /^[a-z0-9._-]{3,30}$/;
 
+function parseJsonField(value, fallback = null) {
+  if (value == null) return fallback;
+  if (typeof value === "object") return value;
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+}
+
+function normalizeTextAnswer(value) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+function toPublicQuestion(question) {
+  const options = parseJsonField(question.options, {});
+
+  return {
+    id: question.id,
+    text: question.text,
+    type: question.type,
+    points: question.points ?? 1,
+    options:
+      question.type === "choice"
+        ? {
+            variants: Array.isArray(options.variants) ? options.variants : [],
+          }
+        : null,
+  };
+}
+
+function gradeQuestion(question, answer) {
+  const points = Number(question.points ?? 1);
+
+  if (question.type === "choice") {
+    const options = parseJsonField(question.options, {});
+    const correctIndex = Number(
+      question.correct_answer !== null && question.correct_answer !== ""
+        ? question.correct_answer
+        : options.correct,
+    );
+
+    const selectedIndex = Number(answer);
+    const correct = Number.isInteger(selectedIndex) && selectedIndex === correctIndex;
+
+    return {
+      questionId: question.id,
+      type: question.type,
+      answer: Number.isInteger(selectedIndex) ? selectedIndex : null,
+      correct,
+      earned: correct ? points : 0,
+      points,
+      correctAnswer: correctIndex,
+      correctAnswerText: options.variants?.[correctIndex] ?? null,
+    };
+  }
+
+  if (question.type === "text") {
+    const correct = normalizeTextAnswer(answer) === normalizeTextAnswer(question.correct_answer);
+
+    return {
+      questionId: question.id,
+      type: question.type,
+      answer: String(answer ?? ""),
+      correct,
+      earned: correct ? points : 0,
+      points,
+      correctAnswer: question.correct_answer,
+    };
+  }
+
+  return {
+    questionId: question.id,
+    type: question.type,
+    answer,
+    correct: false,
+    earned: 0,
+    points,
+    correctAnswer: null,
+  };
+}
+
 function getCookieOptions() {
   return {
     path: "/",
@@ -400,15 +483,239 @@ module.exports = async function apiRoutes(fastify) {
           else if (type === "choice")
             await conn.query(
               `
-          INSERT INTO questions (test_id,text,type,points,options)
-          VALUES (?,?,?,?,?)
-          `,
-              [test_id, title, "choice", points, JSON.stringify(options)],
+              INSERT INTO questions (test_id,text,type,points,correct_answer,options)
+              VALUES (?,?,?,?,?,?)
+              `,
+              [
+                test_id,
+                title,
+                "choice",
+                points,
+                String(options.correct),
+                JSON.stringify(options),
+              ],
             );
         }
+        return { ok: true, testId: test_id };
       } finally {
         conn.release();
       }
     },
   );
+
+  fastify.get("/tests/:id/take", async (request, reply) => {
+    const { authData } = await fastify.get_auth_data(request);
+
+    if (!authData) {
+      return reply.code(401).send({ error: "Не авторизован" });
+    }
+
+    const testId = Number(request.params.id);
+
+    if (!Number.isInteger(testId) || testId <= 0) {
+      return reply.code(400).send({ error: "Некорректный id теста" });
+    }
+
+    const conn = await fastify.mysql.getConnection();
+
+    try {
+      const [[test = null]] = await conn.query(
+        `
+        SELECT id, title, description, max_attempts, time_limit, created_at
+        FROM tests
+        WHERE id = ?
+        `,
+        [testId],
+      );
+
+      if (!test) {
+        return reply.code(404).send({ error: "Тест не найден" });
+      }
+
+      const [[attemptInfo]] = await conn.query(
+        `
+        SELECT COUNT(*) AS attempts_used
+        FROM attempts
+        WHERE test_id = ? AND user_id = ?
+        `,
+        [testId, authData.id],
+      );
+
+      const attemptsUsed = Number(attemptInfo?.attempts_used ?? 0);
+      const maxAttempts = Number(test.max_attempts ?? 1);
+
+      if (maxAttempts > 0 && attemptsUsed >= maxAttempts) {
+        return reply.code(403).send({
+          error: "Количество попыток исчерпано",
+        });
+      }
+
+      const [questions] = await conn.query(
+        `
+        SELECT id, text, type, points, options
+        FROM questions
+        WHERE test_id = ?
+        ORDER BY id ASC
+        `,
+        [testId],
+      );
+
+      return {
+        test: {
+          ...test,
+          attemptsUsed,
+          attemptsLeft: maxAttempts > 0 ? Math.max(maxAttempts - attemptsUsed, 0) : null,
+        },
+        questions: questions.map(toPublicQuestion),
+      };
+    } finally {
+      conn.release();
+    }
+  });
+
+  fastify.post("/tests/:id/submit", async (request, reply) => {
+    const { authData } = await fastify.get_auth_data(request);
+
+    if (!authData) {
+      return reply.code(401).send({ error: "Не авторизован" });
+    }
+
+    const testId = Number(request.params.id);
+    const answers = request.body?.answers;
+
+    if (!Number.isInteger(testId) || testId <= 0) {
+      return reply.code(400).send({ error: "Некорректный id теста" });
+    }
+
+    if (!answers || typeof answers !== "object" || Array.isArray(answers)) {
+      return reply.code(400).send({ error: "Передайте answers объектом" });
+    }
+
+    const conn = await fastify.mysql.getConnection();
+
+    try {
+      const [[test = null]] = await conn.query(
+        `
+        SELECT id, max_attempts
+        FROM tests
+        WHERE id = ?
+        `,
+        [testId],
+      );
+
+      if (!test) {
+        return reply.code(404).send({ error: "Тест не найден" });
+      }
+
+      const [[attemptInfo]] = await conn.query(
+        `
+        SELECT COUNT(*) AS attempts_used
+        FROM attempts
+        WHERE test_id = ? AND user_id = ?
+        `,
+        [testId, authData.id],
+      );
+
+      const attemptsUsed = Number(attemptInfo?.attempts_used ?? 0);
+      const maxAttempts = Number(test.max_attempts ?? 1);
+
+      if (maxAttempts > 0 && attemptsUsed >= maxAttempts) {
+        return reply.code(403).send({
+          error: "Количество попыток исчерпано",
+        });
+      }
+
+      const [questions] = await conn.query(
+        `
+        SELECT id, text, type, points, options, correct_answer
+        FROM questions
+        WHERE test_id = ?
+        ORDER BY id ASC
+        `,
+        [testId],
+      );
+
+      if (questions.length === 0) {
+        return reply.code(400).send({ error: "В тесте нет вопросов" });
+      }
+
+      let score = 0;
+      const maxScore = questions.reduce(
+        (sum, question) => sum + Number(question.points ?? 1),
+        0,
+      );
+
+      const checkedAnswers = questions.map((question) => {
+        const checked = gradeQuestion(question, answers[String(question.id)]);
+        score += checked.earned;
+        return checked;
+      });
+
+      const percentage = maxScore > 0 ? Number(((score / maxScore) * 100).toFixed(2)) : 0;
+
+      const [result] = await conn.query(
+        `
+        INSERT INTO attempts
+          (test_id, user_id, score, max_score, percentage, finished_at, answers)
+        VALUES
+          (?, ?, ?, ?, ?, NOW(), ?)
+        `,
+        [
+          testId,
+          authData.id,
+          score,
+          maxScore,
+          percentage,
+          JSON.stringify(checkedAnswers),
+        ],
+      );
+
+      return {
+        result: {
+          attemptId: result.insertId,
+          score,
+          maxScore,
+          percentage,
+          answers: checkedAnswers,
+        },
+      };
+    } finally {
+      conn.release();
+    }
+  });
+
+  fastify.get("/attempts", async (request, reply) => {
+    const { authData } = await fastify.get_auth_data(request);
+
+    if (!authData) {
+      return reply.code(401).send({ error: "Не авторизован" });
+    }
+
+    const conn = await fastify.mysql.getConnection();
+
+    try {
+      const [attempts] = await conn.query(
+        `
+        SELECT
+          attempts.id,
+          attempts.test_id,
+          tests.title AS test_title,
+          attempts.score,
+          attempts.max_score,
+          attempts.percentage,
+          attempts.finished_at
+        FROM attempts
+        JOIN tests ON tests.id = attempts.test_id
+        WHERE attempts.user_id = ?
+        ORDER BY attempts.finished_at DESC, attempts.id DESC
+        `,
+        [authData.id],
+      );
+
+      return { attempts };
+    } finally {
+      conn.release();
+    }
+  });
+
 };

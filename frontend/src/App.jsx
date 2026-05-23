@@ -12,6 +12,7 @@ import Reports from "./pages/Reports";
 import NotFound from "./pages/NotFound";
 import Profile from "./pages/Profile";
 import TestPage from "./pages/TestPage";
+import TakeTest from "./pages/TakeTest";
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -65,6 +66,11 @@ export default function App() {
             path="/tests/create"
             element={user ? <CreateTest /> : <Navigate to="/login" replace />}
           />
+          
+          <Route
+            path="/tests/:id/take"
+            element={user ? <TakeTest /> : <Navigate to="/login" replace />}
+          />
 
           <Route
             path="/reports"
@@ -73,6 +79,7 @@ export default function App() {
 
           <Route path="/profiles/:username" element={<Profile />} />
           <Route path="/test-page" element={<TestPage />} />
+
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
