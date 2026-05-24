@@ -30,7 +30,7 @@ function toPublicQuestion(question) {
     options:
       question.type === "choice"
         ? {
-            variants: Array.isArray(options.variants) ? options.variants : [],
+            variants: Array.isArray(options) ? options : [],
           }
         : null,
   };
@@ -134,6 +134,10 @@ function publicUser(user) {
   };
 }
 
+/**
+ * @param {import('fastify').FastifyInstance} fastify
+ * @param {import('fastify').FastifyPluginOptions} options
+ */
 module.exports = async function apiRoutes(fastify) {
   fastify.get("/me", async (request) => {
     const { authData } = await fastify.get_auth_data(request);
@@ -142,6 +146,7 @@ module.exports = async function apiRoutes(fastify) {
       user: publicUser(authData),
     };
   });
+
 
   fastify.get("/profiles/:username", async (request, reply) => {
     const { username, error } = normalizeUsername(request.params.username);
@@ -172,6 +177,7 @@ module.exports = async function apiRoutes(fastify) {
     }
   });
 
+
   fastify.get("/tests", async (request, reply) => {
     const { authData } = await fastify.get_auth_data(request);
 
@@ -198,6 +204,7 @@ module.exports = async function apiRoutes(fastify) {
     }
   });
 
+
   fastify.post(
     "/login",
     {
@@ -223,15 +230,11 @@ module.exports = async function apiRoutes(fastify) {
           [email],
         );
 
-        if (!user) {
-          return reply.code(401).send({ error: "Неверный email или пароль" });
-        }
+        if (!user) return reply.code(401).send({ error: "Неверный email или пароль" });
 
         const isValid = await bcrypt.compare(password, user.password_hash);
 
-        if (!isValid) {
-          return reply.code(401).send({ error: "Неверный email или пароль" });
-        }
+        if (!isValid) return reply.code(401).send({ error: "Неверный email или пароль" });
 
         const sessionID = uuidv4();
 
@@ -240,20 +243,17 @@ module.exports = async function apiRoutes(fastify) {
           user.id,
         ]);
 
-        const token = fastify.jwt.sign({
-          sessionID,
-        });
+        const token = fastify.jwt.sign({sessionID,});
 
         reply.setCookie("token", token, getCookieOptions());
 
-        return {
-          user: publicUser(user),
-        };
+        return {user: publicUser(user),};
       } finally {
         conn.release();
       }
     },
   );
+
 
   fastify.post(
     "/register",
@@ -343,6 +343,7 @@ module.exports = async function apiRoutes(fastify) {
     },
   );
 
+
   fastify.post("/logout", async (request, reply) => {
     let token = null;
 
@@ -368,6 +369,7 @@ module.exports = async function apiRoutes(fastify) {
 
     return { ok: true };
   });
+
 
   fastify.post(
     "/addtest",
@@ -400,22 +402,40 @@ module.exports = async function apiRoutes(fastify) {
               minItems: 1,
               items: {
                 type: "object",
-                required: ["title", "type"],
+                required: ["title", "type", "points","type_specific"],
                 properties: {
                   title: { type: "string" },
                   type: { type: "string" },
                   points: { type: "number", minimum: 0 },
-                  correctAnswer: { type: "string" },
-                  options: {
-                    type: "object",
-                    required: ["correct", "variants"],
-                    properties: {
-                      correct: { type: "number" },
-                      variants: {
-                        type: "array",
-                        items: { type: "string" },
+                  type_specific:{
+                    type:'object',
+                    required:[],
+                    properties:{
+                      text:{
+                        type:'object',
+                        required:['correctAnswer'],
+                        properties:{
+                          correctAnswer:{type:'string'}
+                        }
                       },
-                    },
+                      choice:{
+                        type:'object',
+                        required:['options'],
+                        properties:{
+                          options: {
+                            type: "object",
+                            required: ["correct", "variants"],
+                            properties: {
+                              correct: { type: "number" },
+                              variants: {
+                                type: "array",
+                                items: { type: "object", required:['text'], properties: {text: {type:'string'}} },
+                              },
+                            },
+                          },
+                        }
+                      }
+                    }
                   },
                 },
               },
@@ -451,9 +471,9 @@ module.exports = async function apiRoutes(fastify) {
         } = request.body;
         const [result] = await conn.query(
           `
-        INSERT INTO tests (title,description,author_id,max_attempts,time_limit,created_at)
-        VALUES (?,?,?,?,?,?)
-        `,
+          INSERT INTO tests (title,description,author_id,max_attempts,time_limit,created_at)
+          VALUES (?,?,?,?,?,?)
+          `,
           [
             name,
             description,
@@ -469,15 +489,17 @@ module.exports = async function apiRoutes(fastify) {
           title,
           type,
           points,
-          correctAnswer,
-          options,
+          type_specific:{
+            text:{correctAnswer}={},
+            choice:{options}={}
+          }
         } of questions) {
           if (type === "text")
             await conn.query(
               `
-          INSERT INTO questions (test_id,text,type,points,correct_answer)
-          VALUES (?,?,?,?,?)
-          `,
+                INSERT INTO questions (test_id,text,type,points,correct_answer)
+                VALUES (?,?,?,?,?)
+              `,
               [test_id, title, "text", points, correctAnswer],
             );
           else if (type === "choice")
@@ -492,7 +514,7 @@ module.exports = async function apiRoutes(fastify) {
                 "choice",
                 points,
                 String(options.correct),
-                JSON.stringify(options),
+                JSON.stringify(options.variants.map(i=>i.text)),
               ],
             );
         }
@@ -503,18 +525,15 @@ module.exports = async function apiRoutes(fastify) {
     },
   );
 
+
   fastify.get("/tests/:id/take", async (request, reply) => {
     const { authData } = await fastify.get_auth_data(request);
 
-    if (!authData) {
-      return reply.code(401).send({ error: "Не авторизован" });
-    }
+    if (!authData)return reply.code(401).send({ error: "Не авторизован" });
 
     const testId = Number(request.params.id);
 
-    if (!Number.isInteger(testId) || testId <= 0) {
-      return reply.code(400).send({ error: "Некорректный id теста" });
-    }
+    if (!Number.isInteger(testId) || testId <= 0) return reply.code(400).send({ error: "Некорректный id теста" });
 
     const conn = await fastify.mysql.getConnection();
 
@@ -528,9 +547,7 @@ module.exports = async function apiRoutes(fastify) {
         [testId],
       );
 
-      if (!test) {
-        return reply.code(404).send({ error: "Тест не найден" });
-      }
+      if (!test) return reply.code(404).send({ error: "Тест не найден" });
 
       const [[attemptInfo]] = await conn.query(
         `
@@ -572,6 +589,7 @@ module.exports = async function apiRoutes(fastify) {
       conn.release();
     }
   });
+
 
   fastify.post("/tests/:id/submit", async (request, reply) => {
     const { authData } = await fastify.get_auth_data(request);

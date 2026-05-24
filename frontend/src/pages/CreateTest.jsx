@@ -12,16 +12,11 @@ import QuestionModal from "../components/QuestionModal";
 
 function ending(n, endings) {
   return endings[
-    ("2011122222" +
-      "2222222222" +
-      "2011122222" +
-      "2011122222" +
-      "2011122222" +
-      "2011122222" +
-      "2011122222" +
-      "2011122222" +
-      "2011122222" +
-      "2011122222")[Math.abs(n) % 100]
+    ("20111222222222222222" +
+      "20111222222011122222" +
+      "20111222222011122222" +
+      "20111222222011122222" +
+      "20111222222011122222")[Math.abs(n) % 100]
   ];
 }
 
@@ -56,7 +51,6 @@ export default function CreateTest() {
   //     setter(e.target.value);
   //   }
   // }
-  console.log(watch("questions"));
   return (
     <div className="card">
       <style>
@@ -371,18 +365,16 @@ export default function CreateTest() {
           </div>
           <Button
             onClick={handleSubmit(async (data) => {
-              console.log(data);
               if (fields.length === 0) setaAddQuestionShown(true);
               else {
                 try {
-                  console.log(data);
-                  data.questions.forEach(
+                  /*data.questions.forEach(
                     (i) =>
                       i.type === "choice" &&
                       (i.options.variants = i.options.variants.map(
-                        ({ text }) => text,
+                        i=>i.text,
                       )),
-                  );
+                  );*/
                   const resp = await api.addTest(data);
                   navigate("/");
                 } catch (e) {
@@ -402,13 +394,9 @@ export default function CreateTest() {
           setModalShown(false);
         }}
         onSubmit={(data) => {
-          let toadd;
           console.log(data);
-          const { title, type, correctAnswer, options, points } = data;
-          if (type == "text") toadd = { title, type, correctAnswer, points };
-          else if (type == "choice") toadd = { title, type, options, points };
-          if (editing === null) append(toadd);
-          else update(editing, toadd);
+          if (editing === null) append(data);
+          else update(editing, data);
           setaAddQuestionShown(false);
         }}
         initialData={currentQuestion}

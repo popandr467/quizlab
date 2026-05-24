@@ -3,6 +3,48 @@ import React, { useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { Modal, Button, Form, InputGroup } from "react-bootstrap";
 
+const TYPE_SPECIFIC_DEFAULTS=Object.freeze({
+  text:{correctAnswer: ""},
+  choice:{
+    options: {
+      variants: [{ text: "" }, { text: "" }],
+      correct: -1,
+    }
+  },
+});
+
+const DEFAULTS=Object.freeze({
+  title:'',
+  points: 0,
+  type: "text",
+  type_specific:TYPE_SPECIFIC_DEFAULTS
+});
+
+function fill_defaults(data){
+  const res={
+    ...DEFAULTS,
+    ...data,
+    type_specific:{
+      ...TYPE_SPECIFIC_DEFAULTS,
+      ...(data.type?{[data.type]:data.type_specific[data.type]}:{})
+    }
+  };
+  return res;
+}
+
+function type_specific_checks(data){
+  if(data.type==='choice'){
+    const hasCorrect =
+      data.type_specific.choice.options.correct >= 0 &&
+      data.type_specific.choice.options.correct < data.type_specific.choice.options.variants.length;
+    if (!hasCorrect) {
+      alert("Пожалуйста, выберите правильный вариант ответа");
+      return false;
+    }
+  }
+  return true;
+}
+
 /**
  * Модальное окно для создания/редактирования вопроса
  * @param {boolean} show - видимость модального окна
@@ -20,60 +62,26 @@ const QuestionModal = ({ show, onHide, onSubmit, initialData }) => {
     setValue,
     formState: { errors },
   } = useForm({
-    defaultValues: {
-      title: "",
-      points: 0,
-      type: "text",
-      correctAnswer: "",
-      options: {
-        variants: [{ text: "" }, { text: "" }],
-        correct: -1,
-      },
-    },
+    defaultValues: DEFAULTS,
   });
 
   const questionType = watch("type");
   const { fields, append, remove } = useFieldArray({
     control,
-    name: "options.variants",
+    name: "type_specific.choice.options.variants",
   });
-  console.log(watch("options"));
   // Сброс формы при открытии (создание или редактирование)
   useEffect(() => {
     if (!show) return;
-    console.log("reset");
-    if (initialData) {
-      reset({
-        title: initialData.title,
-        type: initialData.type,
-        correctAnswer:
-          initialData.type === "text" ? initialData.correctAnswer : "",
-        options:
-          initialData.type === "choice"
-            ? initialData.options
-            : {
-                variants: [{ text: "" }, { text: "" }],
-                correct: -1,
-              },
-      });
-    } else {
-      console.log("reset with no init data");
-      reset(/*{
-        title: '',
-        type: 'text',
-        correctAnswer: '',
-        options: [
-          { text: '', isCorrect: false },
-          { text: '', isCorrect: false },
-        ],
-      }*/);
+    if (initialData) reset(fill_defaults(initialData));
+    else {
+      reset();
     }
   }, [initialData, reset, show]);
 
   // При переключении на тип "выбор" добавляем недостающие варианты до минимума
   useEffect(() => {
     if (questionType === "choice" && fields.length < 2) {
-      console.log("reset 2");
       const missing = 2 - fields.length;
       for (let i = 0; i < missing; i++) {
         append("");
@@ -81,17 +89,8 @@ const QuestionModal = ({ show, onHide, onSubmit, initialData }) => {
     }
   }, [questionType, fields.length, append]);
 
-  // Выбор правильного варианта (только один)
-  const handleCorrectChange = (index) => {
-    // const currentOptions = watch('options');
-    // const updatedOptions = currentOptions;
-    // updatedOptions.correct=index;
-    setValue("options.correct", index);
-  };
-
   // Добавление варианта (макс. 10)
   const addOption = () => {
-    console.log("option added");
     if (fields.length < 10) {
       append(new Date().toISOString());
     }
@@ -101,44 +100,12 @@ const QuestionModal = ({ show, onHide, onSubmit, initialData }) => {
   const removeOption = (index) => {
     if (fields.length > 2) {
       remove(index);
-      // После удаления, если нет правильного варианта, делаем первый правильным
-      // setTimeout(() => {
-      //   const currentOptions = watch('options');
-      //   if (currentOptions.length > 0 && !currentOptions.some((opt) => opt.isCorrect)) {
-      //     const newOptions = [...currentOptions];
-      //     newOptions[0].isCorrect = true;
-      //     setValue('options', newOptions);
-      //   }
-      // }, 0);
     }
   };
 
   // Обработка отправки формы
   const onFormSubmit = (data) => {
-    if (data.type === "text") {
-      onSubmit({
-        title: data.title,
-        type: "text",
-        correctAnswer: data.correctAnswer,
-        points: data.points,
-      });
-    } else {
-      // Проверка наличия правильного варианта
-      const hasCorrect =
-        data.options.correct >= 0 &&
-        data.options.correct < data.options.variants.length;
-      // console.log(data.options.correct, hasCorrect);
-      if (!hasCorrect) {
-        alert("Пожалуйста, выберите правильный вариант ответа");
-        return;
-      }
-      onSubmit({
-        title: data.title,
-        type: "choice",
-        options: data.options,
-        points: data.points,
-      });
-    }
+    if(type_specific_checks(data))onSubmit({...data, type_specific:{[data.type]:data.type_specific[data.type]}})
     onHide(); // Закрываем окно после сохранения (родитель может переопределить)
   };
 
@@ -208,7 +175,7 @@ const QuestionModal = ({ show, onHide, onSubmit, initialData }) => {
               <Form.Label>Правильный ответ</Form.Label>
               <Form.Control
                 type="text"
-                {...register("correctAnswer", {
+                {...register("type_specific.text.correctAnswer", {
                   required: "Введите правильный ответ",
                 })}
                 isInvalid={!!errors.correctAnswer}
@@ -227,7 +194,7 @@ const QuestionModal = ({ show, onHide, onSubmit, initialData }) => {
                 <InputGroup key={field.id} className="mb-2">
                   <Form.Control
                     placeholder={`Вариант ${index + 1}`}
-                    {...register(`options.variants.${index}.text`, {
+                    {...register(`type_specific.choice.options.variants.${index}.text`, {
                       required: "Вариант не может быть пустым",
                     })}
                     isInvalid={!!errors.options?.[index]}
@@ -236,8 +203,8 @@ const QuestionModal = ({ show, onHide, onSubmit, initialData }) => {
                     <Form.Check
                       type="radio"
                       name="correctOptionGroup"
-                      checked={index == watch("options.correct")}
-                      onChange={() => handleCorrectChange(index)}
+                      checked={index == watch("type_specific.choice.options.correct")}
+                      onChange={() => setValue("type_specific.choice.options.correct", index)}
                       aria-label="Правильный вариант"
                     />
                   </InputGroup.Text>
@@ -259,10 +226,10 @@ const QuestionModal = ({ show, onHide, onSubmit, initialData }) => {
                 Добавить вариант
               </Button>
               {!(
-                watch("options.correct") >= 0 &&
-                watch("options.correct") < watch("options.variants")?.length
+                watch("type_specific.choice.options.correct") >= 0 &&
+                watch("type_specific.choice.options.correct") < watch("type_specific.choice.options.variants")?.length
               ) &&
-                watch("options.variants")?.length > 0 && (
+                watch("type_specific.choice.options.variants")?.length > 0 && (
                   <div className="text-danger mt-2">
                     Необходимо выбрать правильный вариант
                   </div>
