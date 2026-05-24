@@ -418,23 +418,17 @@ module.exports = async function apiRoutes(fastify) {
                           correctAnswer:{type:'string'}
                         }
                       },
-                      choice:{
-                        type:'object',
-                        required:['options'],
-                        properties:{
-                          options: {
-                            type: "object",
-                            required: ["correct", "variants"],
-                            properties: {
-                              correct: { type: "number" },
-                              variants: {
-                                type: "array",
-                                items: { type: "object", required:['text'], properties: {text: {type:'string'}} },
-                              },
-                            },
+                      choice: {
+                        type: "object",
+                        required: ["correct", "variants"],
+                        properties: {
+                          correct: { type: "number" },
+                          variants: {
+                            type: "array",
+                            items: { type: "object", required:['text'], properties: {text: {type:'string'}} },
                           },
-                        }
-                      }
+                        },
+                      },
                     }
                   },
                 },
@@ -491,7 +485,7 @@ module.exports = async function apiRoutes(fastify) {
           points,
           type_specific:{
             text:{correctAnswer}={},
-            choice:{options}={}
+            choice:options
           }
         } of questions) {
           if (type === "text")

@@ -6,10 +6,8 @@ import { Modal, Button, Form, InputGroup } from "react-bootstrap";
 const TYPE_SPECIFIC_DEFAULTS=Object.freeze({
   text:{correctAnswer: ""},
   choice:{
-    options: {
-      variants: [{ text: "" }, { text: "" }],
-      correct: -1,
-    }
+    variants: [{ text: "" }, { text: "" }],
+    correct: -1,
   },
 });
 
@@ -26,7 +24,7 @@ function fill_defaults(data){
     ...data,
     type_specific:{
       ...TYPE_SPECIFIC_DEFAULTS,
-      ...(data.type?{[data.type]:data.type_specific[data.type]}:{})
+      ...(data.type??data.type_specific?{[data.type]:data.type_specific[data.type]}:{})
     }
   };
   return res;
@@ -35,8 +33,8 @@ function fill_defaults(data){
 function type_specific_checks(data){
   if(data.type==='choice'){
     const hasCorrect =
-      data.type_specific.choice.options.correct >= 0 &&
-      data.type_specific.choice.options.correct < data.type_specific.choice.options.variants.length;
+      data.type_specific.choice.correct >= 0 &&
+      data.type_specific.choice.correct < data.type_specific.choice.variants.length;
     if (!hasCorrect) {
       alert("Пожалуйста, выберите правильный вариант ответа");
       return false;
@@ -68,7 +66,7 @@ const QuestionModal = ({ show, onHide, onSubmit, initialData }) => {
   const questionType = watch("type");
   const { fields, append, remove } = useFieldArray({
     control,
-    name: "type_specific.choice.options.variants",
+    name: "type_specific.choice.variants",
   });
   // Сброс формы при открытии (создание или редактирование)
   useEffect(() => {
@@ -105,7 +103,8 @@ const QuestionModal = ({ show, onHide, onSubmit, initialData }) => {
 
   // Обработка отправки формы
   const onFormSubmit = (data) => {
-    if(type_specific_checks(data))onSubmit({...data, type_specific:{[data.type]:data.type_specific[data.type]}})
+    if(!type_specific_checks(data))return;
+    onSubmit({...data, type_specific:{[data.type]:data.type_specific[data.type]}});
     onHide(); // Закрываем окно после сохранения (родитель может переопределить)
   };
 
@@ -194,7 +193,7 @@ const QuestionModal = ({ show, onHide, onSubmit, initialData }) => {
                 <InputGroup key={field.id} className="mb-2">
                   <Form.Control
                     placeholder={`Вариант ${index + 1}`}
-                    {...register(`type_specific.choice.options.variants.${index}.text`, {
+                    {...register(`type_specific.choice.variants.${index}.text`, {
                       required: "Вариант не может быть пустым",
                     })}
                     isInvalid={!!errors.options?.[index]}
@@ -203,8 +202,8 @@ const QuestionModal = ({ show, onHide, onSubmit, initialData }) => {
                     <Form.Check
                       type="radio"
                       name="correctOptionGroup"
-                      checked={index == watch("type_specific.choice.options.correct")}
-                      onChange={() => setValue("type_specific.choice.options.correct", index)}
+                      checked={index == watch("type_specific.choice.correct")}
+                      onChange={() => setValue("type_specific.choice.correct", index)}
                       aria-label="Правильный вариант"
                     />
                   </InputGroup.Text>
@@ -226,10 +225,10 @@ const QuestionModal = ({ show, onHide, onSubmit, initialData }) => {
                 Добавить вариант
               </Button>
               {!(
-                watch("type_specific.choice.options.correct") >= 0 &&
-                watch("type_specific.choice.options.correct") < watch("type_specific.choice.options.variants")?.length
+                watch("type_specific.choice.correct") >= 0 &&
+                watch("type_specific.choice.correct") < watch("type_specific.choice.variants")?.length
               ) &&
-                watch("type_specific.choice.options.variants")?.length > 0 && (
+                watch("type_specific.choice.variants")?.length > 0 && (
                   <div className="text-danger mt-2">
                     Необходимо выбрать правильный вариант
                   </div>
