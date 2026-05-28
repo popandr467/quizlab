@@ -1,98 +1,47 @@
-// App.jsx
-import React, { useState } from "react";
-import { Button, Container, Alert } from "react-bootstrap";
-import QuestionModal from "../components/QuestionModal";
-import "bootstrap/dist/css/bootstrap.min.css";
+import React, { useState } from 'react';
+import useTimer from '../components/TestElement';
 
-function App() {
-  const [showModal, setShowModal] = useState(false);
-  const [editingQuestion, setEditingQuestion] = useState(null);
-  const [savedQuestions, setSavedQuestions] = useState([]);
+const TimerDisplay = ({ days, hours, minutes, seconds, isRunning }) => (
+  <div style={{ fontSize: '2rem', fontFamily: 'monospace' }}>
+    {String(days).padStart(2, '0')}д : {String(hours).padStart(2, '0')}ч :{' '}
+    {String(minutes).padStart(2, '0')}м : {String(seconds).padStart(2, '0')}с
+    <span>{isRunning ? ' ▶️' : ' ⏸️'}</span>
+  </div>
+);
 
-  // Тестовые данные для редактирования
-  const sampleQuestion = {
-    title: "Столица Франции",
-    type: "choice",
-    options: {
-      variants: ["Берлин", "Мадрид", "Париж", "Лиссабон"],
-      correct: 2,
-    } /*[
-      { text: 'Берлин', isCorrect: false },
-      { text: 'Мадрид', isCorrect: false },
-      { text: 'Париж', isCorrect: true },
-      { text: 'Лиссабон', isCorrect: false },
-    ],*/,
-  };
-
-  const handleOpenCreate = () => {
-    setEditingQuestion(null);
-    setShowModal(true);
-  };
-
-  const handleOpenEdit = () => {
-    setEditingQuestion(sampleQuestion);
-    setShowModal(true);
-  };
-
-  const handleSaveQuestion = (questionData) => {
-    if (editingQuestion) {
-      // Редактирование
-      setSavedQuestions((prev) =>
-        prev.map((q) => (q === editingQuestion ? questionData : q)),
-      );
-      alert("Вопрос обновлён!");
-    } else {
-      // Создание
-      setSavedQuestions((prev) => [...prev, questionData]);
-      alert("Вопрос создан!");
-    }
-    setShowModal(false);
-  };
+const App = () => {
+  const [showTimer, setShowTimer] = useState(true);
+  
+  // Таймер живёт на уровне App, его состояние не теряется при скрытии UI
+  const timer = useTimer(90, () => alert('Время вышло!')); // 90 секунд = 1:30
 
   return (
-    <Container className="mt-4">
-      <h1>Управление вопросами</h1>
-      <div className="d-flex gap-2 mb-4">
-        <Button variant="primary" onClick={handleOpenCreate}>
-          Создать вопрос
-        </Button>
-        <Button variant="secondary" onClick={handleOpenEdit}>
-          Редактировать пример
-        </Button>
-      </div>
+    <div>
+      <button onClick={() => setShowTimer(!showTimer)}>
+        {showTimer ? 'Спрятать' : 'Показать'} таймер
+      </button>
 
-      {savedQuestions.length > 0 && (
+      {/* UI таймера можно показывать условно — состояние не сбросится */}
+      {showTimer && (
         <div>
-          <h3>Сохранённые вопросы:</h3>
-          {savedQuestions.map((q, idx) => (
-            <Alert key={idx} variant="info">
-              <strong>{q.title}</strong> (
-              {q.type === "text" ? "Текст" : "Выбор"})
-              {q.type === "text" && (
-                <div>Правильный ответ: {q.correctAnswer}</div>
-              )}
-              {q.type === "choice" && (
-                <ul>
-                  {q.options.variants.map((opt, i) => (
-                    <li key={i}>
-                      {opt} {i == q.options.correct && "✓"}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </Alert>
-          ))}
+          <TimerDisplay {...timer} />
+          <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+            <button onClick={timer.start}>Запустить</button>
+            <button onClick={timer.stop}>Остановить</button>
+            <button onClick={timer.reset}>Сбросить</button>
+          </div>
         </div>
       )}
 
-      <QuestionModal
-        show={showModal}
-        onHide={() => setShowModal(false)}
-        onSubmit={handleSaveQuestion}
-        initialData={editingQuestion}
-      />
-    </Container>
+      {/* Кнопки управления могут быть всегда доступны, даже когда таймер скрыт */}
+      <div style={{ marginTop: '20px' }}>
+        <p>Управление всегда активно:</p>
+        <button onClick={timer.start}>▶ Старт (везде)</button>
+        <button onClick={timer.stop}>⏹ Стоп (везде)</button>
+        <button onClick={timer.reset}>🔄 Сброс (везде)</button>
+      </div>
+    </div>
   );
-}
+};
 
 export default App;

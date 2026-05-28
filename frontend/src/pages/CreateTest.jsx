@@ -10,15 +10,7 @@ import { Link, NavLink, useNavigate } from "react-router-dom";
 
 import QuestionModal from "../components/QuestionModal";
 
-function ending(n, endings) {
-  return endings[
-    ("20111222222222222222" +
-      "20111222222011122222" +
-      "20111222222011122222" +
-      "20111222222011122222" +
-      "20111222222011122222")[Math.abs(n) % 100]
-  ];
-}
+import { ending } from "../utils";
 
 export default function CreateTest() {
   const { control, handleSubmit, watch } = useForm({

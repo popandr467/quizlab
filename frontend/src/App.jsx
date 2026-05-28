@@ -13,6 +13,8 @@ import NotFound from "./pages/NotFound";
 import Profile from "./pages/Profile";
 import TestPage from "./pages/TestPage";
 import TakeTest from "./pages/TakeTest";
+import Report from "./pages/Report";
+import TestStats from "./pages/TestStats";
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -33,7 +35,7 @@ export default function App() {
   }, []);
 
   if (authLoading) {
-    return <div className="container py-4">Загруза...</div>;
+    return <div className="container py-4">Загрузка...</div>;
   }
 
   return (
@@ -62,24 +64,13 @@ export default function App() {
             }
           />
 
-          <Route
-            path="/tests/create"
-            element={user ? <CreateTest /> : <Navigate to="/login" replace />}
-          />
-          
-          <Route
-            path="/tests/:id/take"
-            element={user ? <TakeTest /> : <Navigate to="/login" replace />}
-          />
-
-          <Route
-            path="/reports"
-            element={user ? <Reports /> : <Navigate to="/login" replace />}
-          />
-
+          <Route path="/tests/create" element={user ? <CreateTest /> : <Navigate to="/login" replace />} />
+          <Route path="/tests/:id/take" element={user ? <TakeTest /> : <Navigate to="/login" replace />} />
+          <Route path="/reports" element={user ? <Reports /> : <Navigate to="/login" replace />} />
           <Route path="/profiles/:username" element={<Profile />} />
+          <Route path="/report/:id" element={<Report/>}/>
+          <Route path="/tests/:id/stats" element={<TestStats/>}/>
           <Route path="/test-page" element={<TestPage />} />
-
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>

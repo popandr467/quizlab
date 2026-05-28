@@ -1,13 +1,15 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import { api } from "../api";
+import { Button } from "react-bootstrap";
+import { BarChart, Trash, Play, Copy } from "react-bootstrap-icons";
 
 export default function Home({ user }) {
   const [tests, setTests] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
+  const navigate=useNavigate();
   useEffect(() => {
     if (!user) {
       setTests([]);
@@ -19,16 +21,11 @@ export default function Home({ user }) {
 
     api
       .tests()
-      .then((data) => {
-        setTests(data.tests);
-      })
+      .then((data) => setTests(data.tests))
       .catch((err) => {
         setError(err.message);
         setTests([]);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+      }).finally(() => setLoading(false));
   }, [user]);
 
   if (!user) {
@@ -92,7 +89,7 @@ export default function Home({ user }) {
 
               {!loading && tests.length > 0 && (
                 <div className="list-group">
-                  {tests.map((test) => (
+                  {tests.map((test, index) => (
                     <div
                       className="list-group-item list-group-item-action"
                       key={test.id}
@@ -113,9 +110,14 @@ export default function Home({ user }) {
                           : ""}
                       </p>
                       <div>
-                        <Link className="btn btn-sm btn-primary" to={`/tests/${test.id}/take`}>
-                          Пройти
-                        </Link>
+                        <Button className="me-1" onClick={()=>navigate(`/tests/${test.id}/take`)}><Play/> Пройти</Button>
+                        <Button className="me-1" variant="outline-danger" onClick={()=>{
+                          if(confirm('Вы точно хотите удалить этот тест? Это действие необратимо!')){
+                            api.delTest(test.id).then(()=>setTests(tests.toSpliced(index,1))).catch(e=>alert(e.message));
+                          }
+                        }}><Trash/> Удалить</Button>
+                        <Button className="me-1" variant="outline-primary" onClick={()=>navigate(`/tests/${test.id}/stats`)}><BarChart/> Отчёт</Button>
+                        <Button className="me-1" variant="outline-dark" onClick={()=>navigator.clipboard.writeText(`${location.origin}/tests/${test.id}/take`)}><Copy/> Копировать ссылку</Button>
                       </div>
                     </div>
                   ))}

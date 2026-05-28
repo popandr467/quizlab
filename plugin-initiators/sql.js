@@ -25,6 +25,9 @@ async function createTables(fastify) {
         max_attempts INT DEFAULT 1,
         time_limit INT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        shuffle_questions TINYINT(1) DEFAULT 0,
+        show_results TINYINT(1) DEFAULT 1,
+        show_answers TINYINT(1) DEFAULT 1,
 
         FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE SET NULL,
         INDEX idx_author (author_id)
@@ -56,10 +59,9 @@ async function createTables(fastify) {
         percentage DECIMAL(5,2),
         started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         finished_at TIMESTAMP,
-        answers JSON,
 
-        FOREIGN KEY (test_id) REFERENCES tests(id),
-        FOREIGN KEY (user_id) REFERENCES users(id),
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (test_id) REFERENCES tests(id) ON DELETE CASCADE,
         INDEX idx_test_user (test_id, user_id),
         INDEX idx_percentage (percentage)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -72,6 +74,21 @@ async function createTables(fastify) {
 
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
         INDEX idx_user_id (user_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS answers (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        attempt_id INT NOT NULL,
+        question_id INT NOT NULL,
+        answer TEXT NOT NULL,
+        given_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+        FOREIGN KEY (attempt_id) REFERENCES attempts(id) ON DELETE CASCADE,
+        FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE,
+        UNIQUE KEY attempt_question (attempt_id, question_id),
+        INDEX idx_attempt_id (attempt_id)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
 

@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api";
+import { ending, shuffleArray } from "../utils";
+import { Question } from "../components/Question";
+import useTimer from "../hooks/timer";
 
 export default function TakeTest() {
   const { id } = useParams();
@@ -13,6 +16,16 @@ export default function TakeTest() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [attemptID, setAttemptID] = useState(null);
+  const [currentQuestion, setCurrentQuestion]=useState(0);
+  const navigate = useNavigate();
+  const timer=useTimer(()=>{
+    alert('Время вышло! Ваши ответы будут отправлены как есть.');
+    api.finishAttempt(attemptID).then(()=>navigate(`/report/${attemptID}`)).catch(e=>{
+      alert(e.message);
+      navigate('/')
+    });
+  });
 
   useEffect(() => {
     setLoading(true);
@@ -22,9 +35,15 @@ export default function TakeTest() {
     api
       .testForPassing(id)
       .then((data) => {
+        const questions=data.questions;
+        if(data.test.shuffle_questions)shuffleArray(questions);
         setTest(data.test);
-        setQuestions(data.questions);
+        setQuestions(questions);
+        setAttemptID(data.attemptId);
         setAnswers({});
+        console.log(timer);
+        timer.setTime(data.test.time_limit*60, true);
+        console.log(data);
       })
       .catch((err) => {
         setError(err.message);
@@ -32,6 +51,8 @@ export default function TakeTest() {
       .finally(() => {
         setLoading(false);
       });
+
+      return ()=>{api.terminateAttempt(attemptID)};
   }, [id]);
 
   function updateAnswer(questionId, value) {
@@ -41,35 +62,35 @@ export default function TakeTest() {
     }));
   }
 
-  async function handleSubmit(event) {
-    event.preventDefault();
+  // async function handleSubmit(event) {
+  //   event.preventDefault();
 
-    const unansweredCount = questions.filter((question) => {
-      const answer = answers[question.id];
-      return answer === undefined || answer === null || answer === "";
-    }).length;
+  //   const unansweredCount = questions.filter((question) => {
+  //     const answer = answers[question.id];
+  //     return answer === undefined || answer === null || answer === "";
+  //   }).length;
 
-    if (unansweredCount > 0) {
-      const confirmed = window.confirm(
-        `Не отвечено вопросов: ${unansweredCount}. Всё равно завершить тест?`,
-      );
+  //   if (unansweredCount > 0) {
+  //     const confirmed = window.confirm(
+  //       `Не отвечено вопросов: ${unansweredCount}. Всё равно завершить тест?`,
+  //     );
 
-      if (!confirmed) return;
-    }
+  //     if (!confirmed) return;
+  //   }
 
-    setSubmitting(true);
-    setError("");
+  //   setSubmitting(true);
+  //   setError("");
 
-    try {
-      const data = await api.submitTest(id, answers);
-      setResult(data.result);
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSubmitting(false);
-    }
-  }
+  //   try {
+  //     const data = await api.submitTest(id, answers);
+  //     setResult(data.result);
+  //     window.scrollTo({ top: 0, behavior: "smooth" });
+  //   } catch (err) {
+  //     setError(err.message);
+  //   } finally {
+  //     setSubmitting(false);
+  //   }
+  // }
 
   if (loading) {
     return <p>Загружаем тест...</p>;
@@ -85,49 +106,49 @@ export default function TakeTest() {
     );
   }
 
-  if (result) {
-    return (
-      <div>
-        <h1>Результат</h1>
+  // if (result) {
+  //   return (
+  //     <div>
+  //       <h1>Результат</h1>
 
-        <div className="alert alert-success">
-          <strong>
-            {result.score} / {result.maxScore}
-          </strong>{" "}
-          баллов, {result.percentage}%
-        </div>
+  //       <div className="alert alert-success">
+  //         <strong>
+  //           {result.score} / {result.maxScore}
+  //         </strong>{" "}
+  //         баллов, {result.percentage}%
+  //       </div>
 
-        <h2>Ответы</h2>
+  //       <h2>Ответы</h2>
 
-        <div className="list-group mb-3">
-          {result.answers.map((answer, index) => (
-            <div className="list-group-item" key={answer.questionId}>
-              <div className="d-flex justify-content-between">
-                <strong>Вопрос {index + 1}</strong>
-                <span>{answer.correct ? "Верно" : "Неверно"}</span>
-              </div>
+  //       <div className="list-group mb-3">
+  //         {result.answers.map((answer, index) => (
+  //           <div className="list-group-item" key={answer.questionId}>
+  //             <div className="d-flex justify-content-between">
+  //               <strong>Вопрос {index + 1}</strong>
+  //               <span>{answer.correct ? "Верно" : "Неверно"}</span>
+  //             </div>
 
-              <div>
-                Баллы: {answer.earned} / {answer.points}
-              </div>
+  //             <div>
+  //               Баллы: {answer.earned} / {answer.points}
+  //             </div>
 
-              {answer.correctAnswerText && (
-                <div>Правильный ответ: {answer.correctAnswerText}</div>
-              )}
+  //             {answer.correctAnswerText && (
+  //               <div>Правильный ответ: {answer.correctAnswerText}</div>
+  //             )}
 
-              {!answer.correctAnswerText && answer.correctAnswer !== null && (
-                <div>Правильный ответ: {String(answer.correctAnswer)}</div>
-              )}
-            </div>
-          ))}
-        </div>
+  //             {!answer.correctAnswerText && answer.correctAnswer !== null && (
+  //               <div>Правильный ответ: {String(answer.correctAnswer)}</div>
+  //             )}
+  //           </div>
+  //         ))}
+  //       </div>
 
-        <Link className="btn btn-primary" to="/reports">
-          Перейти в отчёты
-        </Link>
-      </div>
-    );
-  }
+  //       <Link className="btn btn-primary" to="/reports">
+  //         Перейти в отчёты
+  //       </Link>
+  //     </div>
+  //   );
+  // }
 
   return (
     <div>
@@ -139,9 +160,10 @@ export default function TakeTest() {
         Осталось попыток:{" "}
         {test.attemptsLeft === null ? "без ограничений" : test.attemptsLeft}
         {test.time_limit ? ` · Лимит времени: ${test.time_limit} мин.` : ""}
+        {test.time_limit ? ` · Осталось: ${timer.days}:${timer.hours}:${timer.minutes}:${timer.seconds}` : ""}
       </p>
 
-      <form onSubmit={handleSubmit}>
+      {/* <form onSubmit={handleSubmit}>
         {questions.map((question, index) => (
           <div className="card mb-3" key={question.id}>
             <div className="card-body">
@@ -186,7 +208,22 @@ export default function TakeTest() {
         <button className="btn btn-success" type="submit" disabled={submitting}>
           {submitting ? "Проверяем..." : "Завершить тест"}
         </button>
-      </form>
+      </form> */}
+      <Question index={currentQuestion} question={questions[currentQuestion]} last={currentQuestion===questions.length-1}
+        onNext={(index, answer)=>{
+          api.giveAnswer(attemptID, questions[currentQuestion].id, answer).then(()=>{
+            if(currentQuestion===questions.length-1){
+              api.finishAttempt(attemptID).then(()=>navigate(`/report/${attemptID}`)).catch(e=>alert(e.message));
+            }else{
+              setCurrentQuestion(currentQuestion+1);
+            }
+          }).catch(e=>alert(e.message));
+        }} onFinish={(index, answer)=>{
+          const n=questions.length-currentQuestion;
+          if(confirm(`Вы уверены, что хотите завершить тест досрочно?\nОтвет на текущий вопрос не будет отправлен.\nВы не ответили на ${n} вопрос${ending(n,['','а','ов'])}`))
+            api.finishAttempt(attemptID).then(()=>navigate(`/report/${attemptID}`)).catch(e=>alert(e.message));
+        }}
+      />
     </div>
   );
 }

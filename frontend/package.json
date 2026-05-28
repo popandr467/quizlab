@@ -14,9 +14,11 @@
     "bootstrap-icons": "^1.13.1",
     "react": "^19.2.5",
     "react-bootstrap": "^2.10.10",
+    "react-bootstrap-icons": "^1.11.6",
     "react-dom": "^19.2.5",
     "react-hook-form": "^7.75.0",
-    "react-router-dom": "^7.15.0"
+    "react-router-dom": "^7.15.0",
+    "usehooks-ts": "^3.1.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
