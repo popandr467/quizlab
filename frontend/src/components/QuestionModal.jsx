@@ -2,6 +2,7 @@
 import React, { useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { Modal, Button, Form, InputGroup } from "react-bootstrap";
+// import MarkdownTextarea from "./MarkdownTextarea";
 
 const TYPE_SPECIFIC_DEFAULTS = Object.freeze({
   text: { correctAnswer: "" },
@@ -73,12 +74,13 @@ const QuestionModal = ({ show, onHide, onSubmit, initialData }) => {
   });
   // Сброс формы при открытии (создание или редактирование)
   useEffect(() => {
-    if (!show) return;
-    if (initialData) reset(fill_defaults(initialData));
-    else {
-      reset();
+    if (questionType === "choice" && fields.length < 2) {
+      const missing = 2 - fields.length;
+      for (let i = 0; i < missing; i++) {
+        append({ text: "" });
+      }
     }
-  }, [initialData, reset, show]);
+  }, [questionType, fields.length, append]);
 
   // При переключении на тип "выбор" добавляем недостающие варианты до минимума
   useEffect(() => {
@@ -93,7 +95,7 @@ const QuestionModal = ({ show, onHide, onSubmit, initialData }) => {
   // Добавление варианта (макс. 10)
   const addOption = () => {
     if (fields.length < 10) {
-      append(new Date().toISOString());
+      append({ text: "" });
     }
   };
 
