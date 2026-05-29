@@ -9,7 +9,7 @@ export default function Home({ user }) {
   const [tests, setTests] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const navigate=useNavigate();
+  const navigate = useNavigate();
   useEffect(() => {
     if (!user) {
       setTests([]);
@@ -25,7 +25,8 @@ export default function Home({ user }) {
       .catch((err) => {
         setError(err.message);
         setTests([]);
-      }).finally(() => setLoading(false));
+      })
+      .finally(() => setLoading(false));
   }, [user]);
 
   if (!user) {
@@ -110,14 +111,48 @@ export default function Home({ user }) {
                           : ""}
                       </p>
                       <div>
-                        <Button className="me-1" onClick={()=>navigate(`/tests/${test.id}/take`)}><Play/> Пройти</Button>
-                        <Button className="me-1" variant="outline-danger" onClick={()=>{
-                          if(confirm('Вы точно хотите удалить этот тест? Это действие необратимо!')){
-                            api.delTest(test.id).then(()=>setTests(tests.toSpliced(index,1))).catch(e=>alert(e.message));
+                        <Button
+                          className="me-1"
+                          onClick={() => navigate(`/tests/${test.id}/take`)}
+                        >
+                          <Play /> Пройти
+                        </Button>
+                        <Button
+                          className="me-1"
+                          variant="outline-danger"
+                          onClick={() => {
+                            if (
+                              confirm(
+                                "Вы точно хотите удалить этот тест? Это действие необратимо!",
+                              )
+                            ) {
+                              api
+                                .delTest(test.id)
+                                .then(() => setTests(tests.toSpliced(index, 1)))
+                                .catch((e) => alert(e.message));
+                            }
+                          }}
+                        >
+                          <Trash /> Удалить
+                        </Button>
+                        <Button
+                          className="me-1"
+                          variant="outline-primary"
+                          onClick={() => navigate(`/tests/${test.id}/stats`)}
+                        >
+                          <BarChart /> Отчёт
+                        </Button>
+                        <Button
+                          className="me-1"
+                          variant="outline-dark"
+                          onClick={() =>
+                            navigator.clipboard.writeText(
+                              `${location.origin}/tests/${test.id}/take`,
+                            )
                           }
-                        }}><Trash/> Удалить</Button>
-                        <Button className="me-1" variant="outline-primary" onClick={()=>navigate(`/tests/${test.id}/stats`)}><BarChart/> Отчёт</Button>
-                        <Button className="me-1" variant="outline-dark" onClick={()=>navigator.clipboard.writeText(`${location.origin}/tests/${test.id}/take`)}><Copy/> Копировать ссылку</Button>
+                        >
+                          <Copy /> Копировать ссылку
+                        </Button>
                       </div>
                     </div>
                   ))}

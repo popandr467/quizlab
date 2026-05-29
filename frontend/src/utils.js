@@ -6,7 +6,7 @@ export function shuffleArray(array) {
   for (let i = array.length - 1; i > 0; i--) {
     // Generate a random index from 0 to i
     const j = Math.floor(Math.random() * (i + 1));
-    
+
     // Swap elements array[i] and array[j]
     [array[i], array[j]] = [array[j], array[i]];
   }
@@ -18,9 +18,12 @@ export function shuffleArray(array) {
  * @param {...any} vals - часть, задаваемая через ${}
  * @returns {string}
  */
-export function urlEncode(strs, ...vals){
-
-  return strs.map((i,n)=>n!==strs.length-1?`${i}${encodeURIComponent(vals[n])}`:i).join('');
+export function urlEncode(strs, ...vals) {
+  return strs
+    .map((i, n) =>
+      n !== strs.length - 1 ? `${i}${encodeURIComponent(vals[n])}` : i,
+    )
+    .join("");
 }
 
 /**

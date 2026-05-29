@@ -64,12 +64,21 @@ export default function App() {
             }
           />
 
-          <Route path="/tests/create" element={user ? <CreateTest /> : <Navigate to="/login" replace />} />
-          <Route path="/tests/:id/take" element={user ? <TakeTest /> : <Navigate to="/login" replace />} />
-          <Route path="/reports" element={user ? <Reports /> : <Navigate to="/login" replace />} />
+          <Route
+            path="/tests/create"
+            element={user ? <CreateTest /> : <Navigate to="/login" replace />}
+          />
+          <Route
+            path="/tests/:id/take"
+            element={user ? <TakeTest /> : <Navigate to="/login" replace />}
+          />
+          <Route
+            path="/reports"
+            element={user ? <Reports /> : <Navigate to="/login" replace />}
+          />
           <Route path="/profiles/:username" element={<Profile />} />
-          <Route path="/report/:id" element={<Report/>}/>
-          <Route path="/tests/:id/stats" element={<TestStats/>}/>
+          <Route path="/report/:id" element={<Report />} />
+          <Route path="/tests/:id/stats" element={<TestStats />} />
           <Route path="/test-page" element={<TestPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>

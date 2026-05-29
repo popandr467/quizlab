@@ -4,10 +4,10 @@ import { Link, useParams } from "react-router-dom";
 
 export default function TestStats() {
   const [attempts, setAttempts] = useState([]);
-  const [testTitle, setTestTitle] = useState('');
+  const [testTitle, setTestTitle] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const {id}=useParams();
+  const { id } = useParams();
 
   useEffect(() => {
     setLoading(true);
@@ -55,9 +55,18 @@ export default function TestStats() {
               {attempts.map((attempt) => (
                 <tr key={attempt.id}>
                   <td>{attempt.name}</td>
-                  <td>{attempt.score} / {attempt.max_score} ({attempt.percentage}%)</td>
-                  <td>{attempt.finished_at ? new Date(attempt.finished_at).toLocaleString() : "—"}</td>
-                  <td><Link to={`/report/${attempt.id}`}>Перейти{'>>>'}</Link></td>
+                  <td>
+                    {attempt.score} / {attempt.max_score} ({attempt.percentage}
+                    %)
+                  </td>
+                  <td>
+                    {attempt.finished_at
+                      ? new Date(attempt.finished_at).toLocaleString()
+                      : "—"}
+                  </td>
+                  <td>
+                    <Link to={`/report/${attempt.id}`}>Перейти{">>>"}</Link>
+                  </td>
                 </tr>
               ))}
             </tbody>

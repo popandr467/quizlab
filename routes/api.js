@@ -16,7 +16,9 @@ function parseJsonField(value, fallback = null) {
 }
 
 function normalizeTextAnswer(value) {
-  return String(value ?? "").trim().toLowerCase();
+  return String(value ?? "")
+    .trim()
+    .toLowerCase();
 }
 
 function toPublicQuestion(question) {
@@ -36,7 +38,7 @@ function toPublicQuestion(question) {
   };
 }
 
-function toPublicAnswer(question){
+function toPublicAnswer(question) {
   const options = parseJsonField(question.options, {});
 
   return {
@@ -50,7 +52,7 @@ function toPublicAnswer(question){
           }
         : null,
     answer: question.answer,
-    correct_answer: question.correct_answer
+    correct_answer: question.correct_answer,
   };
 }
 
@@ -66,7 +68,8 @@ function gradeQuestion(question, answer) {
     );
 
     const selectedIndex = Number(answer);
-    const correct = Number.isInteger(selectedIndex) && selectedIndex === correctIndex;
+    const correct =
+      Number.isInteger(selectedIndex) && selectedIndex === correctIndex;
 
     return {
       questionId: question.id,
@@ -81,7 +84,9 @@ function gradeQuestion(question, answer) {
   }
 
   if (question.type === "text") {
-    const correct = normalizeTextAnswer(answer) === normalizeTextAnswer(question.correct_answer);
+    const correct =
+      normalizeTextAnswer(answer) ===
+      normalizeTextAnswer(question.correct_answer);
 
     return {
       questionId: question.id,
@@ -119,13 +124,19 @@ function normalizeUsername(value) {
   const withoutAt = raw.startsWith("@") ? raw.slice(1) : raw;
   const username = withoutAt.toLowerCase();
 
-  if (!username)return { error: "Введите username" };
+  if (!username) return { error: "Введите username" };
 
-  if (/\s/.test(withoutAt))return { error: "Username не должен содержать пробелы" };
+  if (/\s/.test(withoutAt))
+    return { error: "Username не должен содержать пробелы" };
 
-  if (withoutAt.includes("@"))return { error: "Символ @ используется только в начале username" };
+  if (withoutAt.includes("@"))
+    return { error: "Символ @ используется только в начале username" };
 
-  if (!USERNAME_RE.test(username))return {error:'Username должен быть длиной 3–30 символов и может содержать латинские буквы, цифры, ".", "_" и "-"'};
+  if (!USERNAME_RE.test(username))
+    return {
+      error:
+        'Username должен быть длиной 3–30 символов и может содержать латинские буквы, цифры, ".", "_" и "-"',
+    };
 
   return { username };
 }
@@ -158,7 +169,7 @@ module.exports = async function apiRoutes(fastify) {
   fastify.get("/me", async (request) => {
     const { authData } = await fastify.get_auth_data(request);
 
-    return {user: publicUser(authData)};
+    return { user: publicUser(authData) };
   });
 
   fastify.get("/profiles/:username", async (request, reply) => {
@@ -167,8 +178,11 @@ module.exports = async function apiRoutes(fastify) {
     const conn = await fastify.mysql.getConnection();
 
     try {
-      const [[profile = null]] = await conn.query('SELECT name, username, created_at FROM users WHERE username = ?', [username]);
-      if (!profile)return reply.code(404).send({ error: "Профиль не найден" })
+      const [[profile = null]] = await conn.query(
+        "SELECT name, username, created_at FROM users WHERE username = ?",
+        [username],
+      );
+      if (!profile) return reply.code(404).send({ error: "Профиль не найден" });
       return { profile };
     } finally {
       conn.release();
@@ -177,13 +191,14 @@ module.exports = async function apiRoutes(fastify) {
 
   fastify.get("/tests", async (request, reply) => {
     const { authData } = await fastify.get_auth_data(request);
-    if (!authData)return reply.code(401).send({ error: "Не авторизован" });
+    if (!authData) return reply.code(401).send({ error: "Не авторизован" });
     const conn = await fastify.mysql.getConnection();
 
     try {
       const [tests] = await conn.query(
         `SELECT id, title, description, max_attempts, time_limit, created_at
-        FROM tests WHERE author_id = ? ORDER BY created_at DESC`, [authData.id]
+        FROM tests WHERE author_id = ? ORDER BY created_at DESC`,
+        [authData.id],
       );
       return { tests };
     } finally {
@@ -191,7 +206,8 @@ module.exports = async function apiRoutes(fastify) {
     }
   });
 
-  fastify.post("/login",
+  fastify.post(
+    "/login",
     {
       schema: {
         body: {
@@ -208,25 +224,34 @@ module.exports = async function apiRoutes(fastify) {
       const { email, password } = request.body;
       const conn = await fastify.mysql.getConnection();
       try {
-        const [[user = null]] = await conn.query("SELECT id, password_hash, name, username FROM users WHERE email = ?",[email]);
-        if (!user) return reply.code(401).send({ error: "Неверный email или пароль" });
+        const [[user = null]] = await conn.query(
+          "SELECT id, password_hash, name, username FROM users WHERE email = ?",
+          [email],
+        );
+        if (!user)
+          return reply.code(401).send({ error: "Неверный email или пароль" });
         const isValid = await bcrypt.compare(password, user.password_hash);
-        if (!isValid) return reply.code(401).send({ error: "Неверный email или пароль" });
+        if (!isValid)
+          return reply.code(401).send({ error: "Неверный email или пароль" });
         const sessionID = uuidv4();
-        await conn.query("INSERT INTO sessions (id, user_id) VALUES (?, ?)", [sessionID,user.id]);
+        await conn.query("INSERT INTO sessions (id, user_id) VALUES (?, ?)", [
+          sessionID,
+          user.id,
+        ]);
 
-        const token = fastify.jwt.sign({sessionID});
+        const token = fastify.jwt.sign({ sessionID });
 
         reply.setCookie("token", token, getCookieOptions());
 
-        return {user: publicUser(user),};
+        return { user: publicUser(user) };
       } finally {
         conn.release();
       }
     },
   );
 
-  fastify.post("/register",
+  fastify.post(
+    "/register",
     {
       schema: {
         body: {
@@ -246,7 +271,8 @@ module.exports = async function apiRoutes(fastify) {
       const name = uname.trim();
       if (!name) return reply.code(400).send({ error: "Введите имя" });
       const normalized = normalizeUsername(usernameRaw);
-      if (normalized.error)return reply.code(400).send({ error: normalized.error });
+      if (normalized.error)
+        return reply.code(400).send({ error: normalized.error });
 
       const username = normalized.username;
       const conn = await fastify.mysql.getConnection();
@@ -262,17 +288,25 @@ module.exports = async function apiRoutes(fastify) {
         const userId = result.insertId;
         const sessionID = uuidv4();
 
-        await conn.query("INSERT INTO sessions (id, user_id) VALUES (?, ?)", [sessionID,userId]);
-        const token = fastify.jwt.sign({sessionID,});
+        await conn.query("INSERT INTO sessions (id, user_id) VALUES (?, ?)", [
+          sessionID,
+          userId,
+        ]);
+        const token = fastify.jwt.sign({ sessionID });
         reply.setCookie("token", token, getCookieOptions());
 
-        return {user:{name,username}};
+        return { user: { name, username } };
       } catch (error) {
         if (error.code === "ER_DUP_ENTRY") {
           const message = String(error.sqlMessage || "");
 
-          if (message.includes("username")||message.includes("uq_users_username")) {
-            return reply.code(409).send({error: "Пользователь с таким username уже существует",});
+          if (
+            message.includes("username") ||
+            message.includes("uq_users_username")
+          ) {
+            return reply
+              .code(409)
+              .send({ error: "Пользователь с таким username уже существует" });
           }
 
           return reply.code(409).send({
@@ -289,18 +323,27 @@ module.exports = async function apiRoutes(fastify) {
 
   fastify.post("/logout", async (request, reply) => {
     let token = null;
-    try {token = await request.jwtVerify();}
-    catch {token = null;}
+    try {
+      token = await request.jwtVerify();
+    } catch {
+      token = null;
+    }
     if (token?.sessionID) {
       const conn = await fastify.mysql.getConnection();
-      try{await conn.query("DELETE FROM sessions WHERE id = ?", [token.sessionID]);}
-      finally{conn.release();}
+      try {
+        await conn.query("DELETE FROM sessions WHERE id = ?", [
+          token.sessionID,
+        ]);
+      } finally {
+        conn.release();
+      }
     }
     reply.clearCookie("token", { path: "/" });
     return { ok: true };
   });
 
-  fastify.post("/addtest",
+  fastify.post(
+    "/addtest",
     {
       schema: {
         body: {
@@ -330,21 +373,21 @@ module.exports = async function apiRoutes(fastify) {
               minItems: 1,
               items: {
                 type: "object",
-                required: ["title", "type", "points","type_specific"],
+                required: ["title", "type", "points", "type_specific"],
                 properties: {
                   title: { type: "string" },
                   type: { type: "string" },
                   points: { type: "number", minimum: 0 },
-                  type_specific:{
-                    type:'object',
-                    required:[],
-                    properties:{
-                      text:{
-                        type:'object',
-                        required:['correctAnswer'],
-                        properties:{
-                          correctAnswer:{type:'string'}
-                        }
+                  type_specific: {
+                    type: "object",
+                    required: [],
+                    properties: {
+                      text: {
+                        type: "object",
+                        required: ["correctAnswer"],
+                        properties: {
+                          correctAnswer: { type: "string" },
+                        },
                       },
                       choice: {
                         type: "object",
@@ -353,11 +396,15 @@ module.exports = async function apiRoutes(fastify) {
                           correct: { type: "number" },
                           variants: {
                             type: "array",
-                            items: { type: "object", required:['text'], properties: {text: {type:'string'}} },
+                            items: {
+                              type: "object",
+                              required: ["text"],
+                              properties: { text: { type: "string" } },
+                            },
                           },
                         },
                       },
-                    }
+                    },
                   },
                 },
               },
@@ -393,36 +440,48 @@ module.exports = async function apiRoutes(fastify) {
           `
           INSERT INTO tests (title,description,author_id,max_attempts,time_limit,created_at,shuffle_questions,show_result,show_answers)
           VALUES (?,?,?,?,?,?,?,?,?)
-          `, [
-            name, description, authData.id,
-            attemptsCount, timeLimit, new Date(),
-            shuffleQuestions, showResult, showAnswers,
+          `,
+          [
+            name,
+            description,
+            authData.id,
+            attemptsCount,
+            timeLimit,
+            new Date(),
+            shuffleQuestions,
+            showResult,
+            showAnswers,
           ],
         );
 
         const test_id = result.insertId;
         for (const {
-          title, type, points,
-          type_specific:{
-            text:{correctAnswer}={},
-            choice:options
-          }
+          title,
+          type,
+          points,
+          type_specific: { text: { correctAnswer } = {}, choice: options },
         } of questions) {
           if (type === "text")
             await conn.query(
               `
                 INSERT INTO questions (test_id,text,type,points,correct_answer)
                 VALUES (?,?,?,?,?)
-              `, [test_id, title, "text", points, correctAnswer],
+              `,
+              [test_id, title, "text", points, correctAnswer],
             );
           else if (type === "choice")
             await conn.query(
               `
               INSERT INTO questions (test_id,text,type,points,correct_answer,options)
               VALUES (?,?,?,?,?,?)
-              `, [
-                test_id, title, "choice", points, String(options.correct),
-                JSON.stringify(options.variants.map(i=>i.text)),
+              `,
+              [
+                test_id,
+                title,
+                "choice",
+                points,
+                String(options.correct),
+                JSON.stringify(options.variants.map((i) => i.text)),
               ],
             );
         }
@@ -435,125 +494,194 @@ module.exports = async function apiRoutes(fastify) {
 
   fastify.get("/tests/:id/take", async (request, reply) => {
     const testId = Number(request.params.id);
-    if (!Number.isInteger(testId) || testId <= 0) return reply.code(400).send({ error: "Некорректный id теста" });
+    if (!Number.isInteger(testId) || testId <= 0)
+      return reply.code(400).send({ error: "Некорректный id теста" });
     const { authData } = await fastify.get_auth_data(request);
-    if (!authData)return reply.code(401).send({ error: "Не авторизован" });
+    if (!authData) return reply.code(401).send({ error: "Не авторизован" });
     const conn = await fastify.mysql.getConnection();
     try {
       const [[test = null]] = await conn.query(
         `SELECT id, title, description, max_attempts, time_limit, created_at, shuffle_questions, show_answers, show_result, author_id
-        FROM tests WHERE id = ?`, [testId]
+        FROM tests WHERE id = ?`,
+        [testId],
       );
-      if(!test)return reply.code(404).send({ error: "Тест не найден" });
+      if (!test) return reply.code(404).send({ error: "Тест не найден" });
 
-      const [[attemptInfo]] = await conn.query("SELECT COUNT(*) AS attempts_used FROM attempts WHERE test_id = ? AND user_id = ?", [testId, authData.id]);
+      const [[attemptInfo]] = await conn.query(
+        "SELECT COUNT(*) AS attempts_used FROM attempts WHERE test_id = ? AND user_id = ?",
+        [testId, authData.id],
+      );
 
       const attemptsUsed = Number(attemptInfo?.attempts_used ?? 0);
       const maxAttempts = Number(test.max_attempts ?? 1);
-      if (maxAttempts>0 && attemptsUsed>=maxAttempts && test.author_id!==authData.id)return reply.code(403).send({error: "Количество попыток исчерпано"});
+      if (
+        maxAttempts > 0 &&
+        attemptsUsed >= maxAttempts &&
+        test.author_id !== authData.id
+      )
+        return reply.code(403).send({ error: "Количество попыток исчерпано" });
 
       const [questions] = await conn.query(
         `SELECT id, text, type, points, options
         FROM questions WHERE test_id = ?
-        ORDER BY id ASC`, [testId],
+        ORDER BY id ASC`,
+        [testId],
       );
 
-      const [result]=await conn.query('INSERT INTO attempts (test_id, user_id) VALUES (?,?)',[testId, authData.id]);
+      const [result] = await conn.query(
+        "INSERT INTO attempts (test_id, user_id) VALUES (?,?)",
+        [testId, authData.id],
+      );
 
       return {
         test: {
           ...test,
           attemptsUsed,
-          attemptsLeft: maxAttempts > 0 ? Math.max(maxAttempts - attemptsUsed, 0) : null,
+          attemptsLeft:
+            maxAttempts > 0 ? Math.max(maxAttempts - attemptsUsed, 0) : null,
         },
         questions: questions.map(toPublicQuestion),
-        attemptId:result.insertId
+        attemptId: result.insertId,
       };
     } finally {
       conn.release();
     }
   });
 
-  fastify.post('/attempt/:aid/giveAnswer/:qid',
+  fastify.post(
+    "/attempt/:aid/giveAnswer/:qid",
     {
-      schema:{
-        body:{
-          type:'object',
-          required:['answer'],
-          properties:{answer:{type:['string', 'number']}}
-        }
-      }
+      schema: {
+        body: {
+          type: "object",
+          required: ["answer"],
+          properties: { answer: { type: ["string", "number"] } },
+        },
+      },
     },
-    async (request, reply)=>{
-      const attemptId=Number(request.params.aid), questionId=Number(request.params.qid);
-      if(!Number.isInteger(attemptId) || attemptId <= 0) return reply.code(400).send({ error: "Некорректный id попытки" });
-      if(!Number.isInteger(questionId) || questionId <= 0) return reply.code(400).send({ error: "Некорректный id вопроса" });
+    async (request, reply) => {
+      const attemptId = Number(request.params.aid),
+        questionId = Number(request.params.qid);
+      if (!Number.isInteger(attemptId) || attemptId <= 0)
+        return reply.code(400).send({ error: "Некорректный id попытки" });
+      if (!Number.isInteger(questionId) || questionId <= 0)
+        return reply.code(400).send({ error: "Некорректный id вопроса" });
       const { authData } = await fastify.get_auth_data(request);
-      if(!authData)return reply.code(401).send({ error: "Не авторизован" });
+      if (!authData) return reply.code(401).send({ error: "Не авторизован" });
       const conn = await fastify.mysql.getConnection();
-      try{
-        const [[attempt=null]]=await conn.query('SELECT user_id, finished_at, test_id FROM attempts WHERE id=?',[attemptId]);
-        if(!attempt)return reply.code(404).send({error: "Попытка не найдена"});
-        if(attempt.user_id!==authData.id)return reply.code(401).send({error: "Данные авторизации не принадлежат автору попытки"});
-        if(attempt.finished_at)return reply.code(400).send({ error: "Попытка уже завершена, дать ответ нельзя" });
-        const [[question=null]]=await conn.query('SELECT test_id FROM questions WHERE id=?',[questionId]);
-        if(!attempt)return reply.code(404).send({error: "Вопрос не найден"});
-        if(attempt.test_id!==question.test_id)return reply.code(401).send({error: "Вопрос и попытка относятся к разным тестам"});
-        await conn.query('INSERT IGNORE INTO answers (attempt_id, question_id, answer) VALUES (?, ?, ?)', [attemptId, questionId, request.body.answer]);
+      try {
+        const [[attempt = null]] = await conn.query(
+          "SELECT user_id, finished_at, test_id FROM attempts WHERE id=?",
+          [attemptId],
+        );
+        if (!attempt)
+          return reply.code(404).send({ error: "Попытка не найдена" });
+        if (attempt.user_id !== authData.id)
+          return reply.code(401).send({
+            error: "Данные авторизации не принадлежат автору попытки",
+          });
+        if (attempt.finished_at)
+          return reply
+            .code(400)
+            .send({ error: "Попытка уже завершена, дать ответ нельзя" });
+        const [[question = null]] = await conn.query(
+          "SELECT test_id FROM questions WHERE id=?",
+          [questionId],
+        );
+        if (!attempt)
+          return reply.code(404).send({ error: "Вопрос не найден" });
+        if (attempt.test_id !== question.test_id)
+          return reply
+            .code(401)
+            .send({ error: "Вопрос и попытка относятся к разным тестам" });
+        await conn.query(
+          "INSERT IGNORE INTO answers (attempt_id, question_id, answer) VALUES (?, ?, ?)",
+          [attemptId, questionId, request.body.answer],
+        );
         return reply.code(206).send();
-      }finally{conn.release();}
+      } finally {
+        conn.release();
+      }
       return reply.code(206).send();
-    }
+    },
   );
 
-  fastify.post('/terminate_attempt/:id', async (request,reply)=>{
+  fastify.post("/terminate_attempt/:id", async (request, reply) => {
     const { authData } = await fastify.get_auth_data(request);
-    if(!authData)return reply.code(401).send({ error: "Не авторизован" });
+    if (!authData) return reply.code(401).send({ error: "Не авторизован" });
     const attemptId = Number(request.params.id);
-    if(!Number.isInteger(attemptId) || attemptId <= 0) return reply.code(400).send({ error: "Некорректный id попытки" });
+    if (!Number.isInteger(attemptId) || attemptId <= 0)
+      return reply.code(400).send({ error: "Некорректный id попытки" });
     const conn = await fastify.mysql.getConnection();
-    try{
-      const [[attempt=null]]=await conn.query('SELECT user_id, finished_at FROM attempts WHERE id=?',[attemptId]);
-      if(!attempt)return reply.code(404).send({error: "Попытка не найдена"});
-      if(attempt.user_id!==authData.id)return reply.code(401).send({error: "Данные авторизации не принадлежат автору попытки"});
-      if(attempt.finished_at)return reply.code(400).send({ error: "Попытка завершена, прервать нельзя" });
-      await conn.query('DELETE FROM attempts WHERE id=?',[attemptId]);
+    try {
+      const [[attempt = null]] = await conn.query(
+        "SELECT user_id, finished_at FROM attempts WHERE id=?",
+        [attemptId],
+      );
+      if (!attempt)
+        return reply.code(404).send({ error: "Попытка не найдена" });
+      if (attempt.user_id !== authData.id)
+        return reply
+          .code(401)
+          .send({ error: "Данные авторизации не принадлежат автору попытки" });
+      if (attempt.finished_at)
+        return reply
+          .code(400)
+          .send({ error: "Попытка завершена, прервать нельзя" });
+      await conn.query("DELETE FROM attempts WHERE id=?", [attemptId]);
       return reply.code(206).send();
-    }finally{conn.release();}
+    } finally {
+      conn.release();
+    }
   });
 
-  fastify.post('/finish_attempt/:id', async (request, reply)=>{
+  fastify.post("/finish_attempt/:id", async (request, reply) => {
     const attemptId = Number(request.params.id);
-    if(!Number.isInteger(attemptId) || attemptId <= 0) return reply.code(400).send({ error: "Некорректный id попытки" });
+    if (!Number.isInteger(attemptId) || attemptId <= 0)
+      return reply.code(400).send({ error: "Некорректный id попытки" });
     const { authData } = await fastify.get_auth_data(request);
-    if(!authData)return reply.code(401).send({ error: "Не авторизован" });
+    if (!authData) return reply.code(401).send({ error: "Не авторизован" });
     const conn = await fastify.mysql.getConnection();
-    try{
-      const [[attempt=null]]=await conn.query(
+    try {
+      const [[attempt = null]] = await conn.query(
         `SELECT a.user_id, a.started_at, a.finished_at, a.test_id, t.time_limit FROM attempts a
         JOIN tests t ON a.test_id=t.id
-        WHERE a.id=?`, [attemptId]
+        WHERE a.id=?`,
+        [attemptId],
       );
-      if(!attempt)return reply.code(404).send({error: "Попытка не найдена"});
-      if(attempt.user_id!==authData.id)return reply.code(401).send({error: "Данные авторизации не принадлежат автору попытки"});
-      if(attempt.finished_at)return reply.code(400).send({ error: "Попытка уже завершена" });
-      const now=new Date();
-      if(now-attempt.started_at>attempt.timeLimit*60000+30000)return reply.code(400).send({ error: "Время вышло!" });
-      const [answers]=await conn.query(
+      if (!attempt)
+        return reply.code(404).send({ error: "Попытка не найдена" });
+      if (attempt.user_id !== authData.id)
+        return reply
+          .code(401)
+          .send({ error: "Данные авторизации не принадлежат автору попытки" });
+      if (attempt.finished_at)
+        return reply.code(400).send({ error: "Попытка уже завершена" });
+      const now = new Date();
+      if (now - attempt.started_at > attempt.timeLimit * 60000 + 30000)
+        return reply.code(400).send({ error: "Время вышло!" });
+      const [answers] = await conn.query(
         `SELECT q.points, q.correct_answer, a.answer FROM questions q
         LEFT JOIN answers a ON a.question_id=q.id AND a.attempt_id=?
-        WHERE q.test_id=?`, [attempt.test_id, attemptId]
+        WHERE q.test_id=?`,
+        [attempt.test_id, attemptId],
       );
-      let score=0, max_score=0;
-      for(const {points, answer, correct_answer} of answers){
-        console.log({points, answer, correct_answer});
-        max_score+=points;
-        if(correct_answer===answer)score+=points;
-        console.log({score, max_score});
+      let score = 0,
+        max_score = 0;
+      for (const { points, answer, correct_answer } of answers) {
+        console.log({ points, answer, correct_answer });
+        max_score += points;
+        if (correct_answer === answer) score += points;
+        console.log({ score, max_score });
       }
-      await conn.query('UPDATE attempts SET finished_at=?, score=?, max_score=?, percentage=? WHERE id=?',[now,score,max_score,(score/max_score||1)*100,attemptId]);
+      await conn.query(
+        "UPDATE attempts SET finished_at=?, score=?, max_score=?, percentage=? WHERE id=?",
+        [now, score, max_score, (score / max_score || 1) * 100, attemptId],
+      );
       return reply.code(206).send();
-    }finally{conn.release();}
+    } finally {
+      conn.release();
+    }
   });
   /*fastify.post("/tests/:id/submit", async (request, reply) => {
     const { authData } = await fastify.get_auth_data(request);
@@ -641,7 +769,8 @@ module.exports = async function apiRoutes(fastify) {
         JOIN tests ON tests.id = attempts.test_id
         WHERE attempts.user_id = ?
         ORDER BY attempts.finished_at DESC, attempts.id DESC
-        `, [authData.id],
+        `,
+        [authData.id],
       );
 
       return { attempts };
@@ -650,76 +779,123 @@ module.exports = async function apiRoutes(fastify) {
     }
   });
 
-  fastify.get('/report/:id', async (request, reply)=>{
+  fastify.get("/report/:id", async (request, reply) => {
     const attemptId = Number(request.params.id);
-    if(!Number.isInteger(attemptId) || attemptId <= 0) return reply.code(400).send({ error: "Некорректный id попытки" });
+    if (!Number.isInteger(attemptId) || attemptId <= 0)
+      return reply.code(400).send({ error: "Некорректный id попытки" });
     let { authData } = await fastify.get_auth_data(request);
-    if(!authData)authData={id:null};
+    if (!authData) authData = { id: null };
     const conn = await fastify.mysql.getConnection();
-    try{
-      const [[attempt=null]]=await conn.query(
+    try {
+      const [[attempt = null]] = await conn.query(
         `SELECT a.user_id, a.finished_at, a.test_id, a.percentage, a.score, a.max_score, t.author_id, t.show_result, t.show_answers FROM attempts a
         JOIN tests t ON a.test_id=t.id
-        WHERE a.id=?`,[attemptId]
+        WHERE a.id=?`,
+        [attemptId],
       );
-      if(!attempt)return reply.code(404).send({error: "Попытка не найдена"});
-      if(!attempt.finished_at)return reply.code(400).send({ error: "Попытка не завершена" });
-      const showResult=attempt.show_result||attempt.author_id==authData.id;
-      const showAnswers=attempt.show_answers||attempt.author_id==authData.id;
+      if (!attempt)
+        return reply.code(404).send({ error: "Попытка не найдена" });
+      if (!attempt.finished_at)
+        return reply.code(400).send({ error: "Попытка не завершена" });
+      const showResult =
+        attempt.show_result || attempt.author_id == authData.id;
+      const showAnswers =
+        attempt.show_answers || attempt.author_id == authData.id;
       return {
-        ...(attempt.user_id!==authData.id?{user:publicUser((await conn.query('SELECT name, username FROM users WHERE id=?',[attempt.user_id]))[0][0])}:{}),
-        ...(showResult?{
-          result:{
-            percentage: attempt.percentage,
-            score: attempt.score,
-            max_score: attempt.max_score
-          }
-        }:{}),
-        ...(showAnswers?{
-          answers:(await conn.query(
-            `SELECT a.answer, q.correct_answer, q.text, q.type, q.points, q.options
+        ...(attempt.user_id !== authData.id
+          ? {
+              user: publicUser(
+                (
+                  await conn.query(
+                    "SELECT name, username FROM users WHERE id=?",
+                    [attempt.user_id],
+                  )
+                )[0][0],
+              ),
+            }
+          : {}),
+        ...(showResult
+          ? {
+              result: {
+                percentage: attempt.percentage,
+                score: attempt.score,
+                max_score: attempt.max_score,
+              },
+            }
+          : {}),
+        ...(showAnswers
+          ? {
+              answers: (
+                await conn.query(
+                  `SELECT a.answer, q.correct_answer, q.text, q.type, q.points, q.options
             FROM answers a JOIN questions q ON a.question_id=q.id WHERE a.attempt_id=?`,
-            [attemptId]
-          ))[0].map(toPublicAnswer)
-        }:{})
-      }
+                  [attemptId],
+                )
+              )[0].map(toPublicAnswer),
+            }
+          : {}),
+      };
+    } finally {
+      conn.release();
     }
-    finally{conn.release();}
   });
 
-  fastify.delete('/tests/:id', async (request, reply)=>{
+  fastify.delete("/tests/:id", async (request, reply) => {
     const testId = Number(request.params.id);
-    if (!Number.isInteger(testId) || testId <= 0) return reply.code(400).send({ error: "Некорректный id теста" });
+    if (!Number.isInteger(testId) || testId <= 0)
+      return reply.code(400).send({ error: "Некорректный id теста" });
     const { authData } = await fastify.get_auth_data(request);
-    if (!authData)return reply.code(401).send({ error: "Не авторизован" });
+    if (!authData) return reply.code(401).send({ error: "Не авторизован" });
     const conn = await fastify.mysql.getConnection();
-    try{
-      const [[test]]=await conn.query('SELECT author_id FROM tests WHERE id=?',[testId]);
-      if(!test)return reply.code(404).send({error: "Тест не найден"});
-      if(test.author_id!==authData.id)return reply.code(401).send({error: "Данные авторизации не принадлежат автору теста"});
-      await conn.query('DELETE FROM tests WHERE id=?', [testId]);
+    try {
+      const [[test]] = await conn.query(
+        "SELECT author_id FROM tests WHERE id=?",
+        [testId],
+      );
+      if (!test) return reply.code(404).send({ error: "Тест не найден" });
+      if (test.author_id !== authData.id)
+        return reply
+          .code(401)
+          .send({ error: "Данные авторизации не принадлежат автору теста" });
+      await conn.query("DELETE FROM tests WHERE id=?", [testId]);
       return reply.code(206).send();
-    }finally{conn.release();}
+    } finally {
+      conn.release();
+    }
   });
 
-  fastify.get('/tests/:id/stats', async (request, reply)=>{
+  fastify.get("/tests/:id/stats", async (request, reply) => {
     const testId = Number(request.params.id);
-    if(!Number.isInteger(testId) || testId <= 0) return reply.code(400).send({ error: "Некорректный id теста" });
+    if (!Number.isInteger(testId) || testId <= 0)
+      return reply.code(400).send({ error: "Некорректный id теста" });
     const { authData } = await fastify.get_auth_data(request);
-    if(!authData)return reply.code(401).send({ error: "Не авторизован" });
+    if (!authData) return reply.code(401).send({ error: "Не авторизован" });
     const conn = await fastify.mysql.getConnection();
-    try{
-      const [[test]]=await conn.query('SELECT author_id, title FROM tests WHERE id=?',[testId]);
-      if(!test)return reply.code(404).send({error: "Тест не найден"});
-      if(test.author_id!==authData.id)return reply.code(401).send({error: "Данные авторизации не принадлежат автору теста"});
-      const res={
-        attempts:(await conn.query('SELECT a.id, a.score, a.max_score, a.percentage, a.finished_at, u.name FROM attempts a JOIN users u ON u.id=a.user_id WHERE a.test_id=? and a.finished_at IS NOT NULL',[testId]))[0]//.map(reducedAttemptStats)
-        ,test_title:test.title
+    try {
+      const [[test]] = await conn.query(
+        "SELECT author_id, title FROM tests WHERE id=?",
+        [testId],
+      );
+      if (!test) return reply.code(404).send({ error: "Тест не найден" });
+      if (test.author_id !== authData.id)
+        return reply
+          .code(401)
+          .send({ error: "Данные авторизации не принадлежат автору теста" });
+      const res = {
+        attempts: (
+          await conn.query(
+            "SELECT a.id, a.score, a.max_score, a.percentage, a.finished_at, u.name FROM attempts a JOIN users u ON u.id=a.user_id WHERE a.test_id=? and a.finished_at IS NOT NULL",
+            [testId],
+          )
+        )[0], //.map(reducedAttemptStats)
+        test_title: test.title,
       };
       console.log(testId);
       console.log(test);
       console.log(res);
-      return res
-    }finally{conn.release();}
-  })
+      return res;
+    } finally {
+      conn.release();
+    }
+  });
 };

@@ -17,14 +17,17 @@ export default function TakeTest() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [attemptID, setAttemptID] = useState(null);
-  const [currentQuestion, setCurrentQuestion]=useState(0);
+  const [currentQuestion, setCurrentQuestion] = useState(0);
   const navigate = useNavigate();
-  const timer=useTimer(()=>{
-    alert('Время вышло! Ваши ответы будут отправлены как есть.');
-    api.finishAttempt(attemptID).then(()=>navigate(`/report/${attemptID}`)).catch(e=>{
-      alert(e.message);
-      navigate('/')
-    });
+  const timer = useTimer(() => {
+    alert("Время вышло! Ваши ответы будут отправлены как есть.");
+    api
+      .finishAttempt(attemptID)
+      .then(() => navigate(`/report/${attemptID}`))
+      .catch((e) => {
+        alert(e.message);
+        navigate("/");
+      });
   });
 
   useEffect(() => {
@@ -35,14 +38,14 @@ export default function TakeTest() {
     api
       .testForPassing(id)
       .then((data) => {
-        const questions=data.questions;
-        if(data.test.shuffle_questions)shuffleArray(questions);
+        const questions = data.questions;
+        if (data.test.shuffle_questions) shuffleArray(questions);
         setTest(data.test);
         setQuestions(questions);
         setAttemptID(data.attemptId);
         setAnswers({});
         console.log(timer);
-        timer.setTime(data.test.time_limit*60, true);
+        timer.setTime(data.test.time_limit * 60, true);
         console.log(data);
       })
       .catch((err) => {
@@ -52,7 +55,9 @@ export default function TakeTest() {
         setLoading(false);
       });
 
-      return ()=>{api.terminateAttempt(attemptID)};
+    return () => {
+      api.terminateAttempt(attemptID);
+    };
   }, [id]);
 
   function updateAnswer(questionId, value) {
@@ -160,7 +165,9 @@ export default function TakeTest() {
         Осталось попыток:{" "}
         {test.attemptsLeft === null ? "без ограничений" : test.attemptsLeft}
         {test.time_limit ? ` · Лимит времени: ${test.time_limit} мин.` : ""}
-        {test.time_limit ? ` · Осталось: ${timer.days}:${timer.hours}:${timer.minutes}:${timer.seconds}` : ""}
+        {test.time_limit
+          ? ` · Осталось: ${timer.days}:${timer.hours}:${timer.minutes}:${timer.seconds}`
+          : ""}
       </p>
 
       {/* <form onSubmit={handleSubmit}>
@@ -209,19 +216,36 @@ export default function TakeTest() {
           {submitting ? "Проверяем..." : "Завершить тест"}
         </button>
       </form> */}
-      <Question index={currentQuestion} question={questions[currentQuestion]} last={currentQuestion===questions.length-1}
-        onNext={(index, answer)=>{
-          api.giveAnswer(attemptID, questions[currentQuestion].id, answer).then(()=>{
-            if(currentQuestion===questions.length-1){
-              api.finishAttempt(attemptID).then(()=>navigate(`/report/${attemptID}`)).catch(e=>alert(e.message));
-            }else{
-              setCurrentQuestion(currentQuestion+1);
-            }
-          }).catch(e=>alert(e.message));
-        }} onFinish={(index, answer)=>{
-          const n=questions.length-currentQuestion;
-          if(confirm(`Вы уверены, что хотите завершить тест досрочно?\nОтвет на текущий вопрос не будет отправлен.\nВы не ответили на ${n} вопрос${ending(n,['','а','ов'])}`))
-            api.finishAttempt(attemptID).then(()=>navigate(`/report/${attemptID}`)).catch(e=>alert(e.message));
+      <Question
+        index={currentQuestion}
+        question={questions[currentQuestion]}
+        last={currentQuestion === questions.length - 1}
+        onNext={(index, answer) => {
+          api
+            .giveAnswer(attemptID, questions[currentQuestion].id, answer)
+            .then(() => {
+              if (currentQuestion === questions.length - 1) {
+                api
+                  .finishAttempt(attemptID)
+                  .then(() => navigate(`/report/${attemptID}`))
+                  .catch((e) => alert(e.message));
+              } else {
+                setCurrentQuestion(currentQuestion + 1);
+              }
+            })
+            .catch((e) => alert(e.message));
+        }}
+        onFinish={(index, answer) => {
+          const n = questions.length - currentQuestion;
+          if (
+            confirm(
+              `Вы уверены, что хотите завершить тест досрочно?\nОтвет на текущий вопрос не будет отправлен.\nВы не ответили на ${n} вопрос${ending(n, ["", "а", "ов"])}`,
+            )
+          )
+            api
+              .finishAttempt(attemptID)
+              .then(() => navigate(`/report/${attemptID}`))
+              .catch((e) => alert(e.message));
         }}
       />
     </div>

@@ -26,7 +26,7 @@ async function createTables(fastify) {
         time_limit INT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         shuffle_questions TINYINT(1) DEFAULT 0,
-        show_results TINYINT(1) DEFAULT 1,
+        show_result TINYINT(1) DEFAULT 1,
         show_answers TINYINT(1) DEFAULT 1,
 
         FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE SET NULL,

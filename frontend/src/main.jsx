@@ -13,4 +13,4 @@ import App from "./App.jsx";
 //     <App />
 //   </StrictMode>,
 // );
-createRoot(document.getElementById("root")).render(<App/>);
+createRoot(document.getElementById("root")).render(<App />);

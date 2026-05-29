@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from "react";
 
 const useTimer = (initialTime = 0, onComplete) => {
   // initialTime - общее количество секунд
@@ -25,7 +25,7 @@ const useTimer = (initialTime = 0, onComplete) => {
 
     setIsRunning(true);
     intervalRef.current = setInterval(() => {
-      setTotalSeconds(prev => {
+      setTotalSeconds((prev) => {
         if (prev <= 1) {
           // Время истекло
           clearInterval(intervalRef.current);
@@ -44,11 +44,14 @@ const useTimer = (initialTime = 0, onComplete) => {
     setTotalSeconds(initialTime);
   }, [initialTime, stop]);
 
-  const setTime = useCallback((seconds) => {
-    if (!isRunning) {
-      setTotalSeconds(seconds);
-    }
-  }, [isRunning]);
+  const setTime = useCallback(
+    (seconds) => {
+      if (!isRunning) {
+        setTotalSeconds(seconds);
+      }
+    },
+    [isRunning],
+  );
 
   // Очистка при размонтировании
   useEffect(() => {
@@ -73,7 +76,7 @@ const useTimer = (initialTime = 0, onComplete) => {
     start,
     stop,
     reset,
-    setTime
+    setTime,
   };
 };
 

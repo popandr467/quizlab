@@ -1,8 +1,9 @@
 import { use, useEffect, useState } from "react";
 import Form from "react-bootstrap/Form";
 import Button from "react-bootstrap/Button";
-import { ArrowRight, XCircle, SkipEndFill } from 'react-bootstrap-icons';
+import { ArrowRight, XCircle, SkipEndFill } from "react-bootstrap-icons";
 import { Row } from "react-bootstrap";
+import MarkdownText from "./MarkdownText";
 
 /**
  * Карточка для отображения вопроса
@@ -13,49 +14,70 @@ import { Row } from "react-bootstrap";
  * @param {(index:Number,answer:Number|String)=>void} props.onNext
  * @param {(index:Number,answer:Number|String)=>void} props.onFinish
  */
-export function Question({index, question, last, onNext, onFinish}){
-  const [answer, setAnswer]=useState(()=>{
-    switch (question.type){
-      case 'text':return '';
-      case 'choice':return 0;
+export function Question({ index, question, last, onNext, onFinish }) {
+  const [answer, setAnswer] = useState(() => {
+    switch (question.type) {
+      case "text":
+        return "";
+      case "choice":
+        return 0;
     }
   });
   return (
     <div className="card mb-3" key={question.id}>
       <div className="card-body">
-        <h2 className="h5">{index + 1}. {question.text}</h2>
+        <h2 className="h5">
+          {index + 1}. <MarkdownText>{question.text}</MarkdownText>
+        </h2>
 
         <div className="text-muted mb-2">Баллы: {question.points}</div>
 
         {question.type === "text" && (
           <Form.Control
-            as="textarea" rows="3"
+            as="textarea"
+            rows="3"
             value={answer ?? ""}
-            onChange={e=>setAnswer(e.target.value)}
+            onChange={(e) => setAnswer(e.target.value)}
             placeholder="Введите ответ"
           />
         )}
 
-        {question.type === "choice" && (
-          <div>
-            {question.options?.variants?.map((variant, variantIndex) => (
-              <Form.Label className="mb-2" key={variantIndex}>
-                <Form.Check
+        {question.type === "choice" &&
+          question.options?.variants?.map((variant, variantIndex) => {
+            const variantText =
+              typeof variant === "string" ? variant : (variant?.text ?? "");
+
+            return (
+              <label className="d-block mb-2" key={variantIndex}>
+                <input
+                  className="form-check-input me-2"
                   type="radio"
-                  // name={`question-${question.id}`}
-                  checked={Number(answer) === variantIndex}
+                  name={`question-${question.id}`}
+                  checked={answer === variantIndex}
                   onChange={() => setAnswer(variantIndex)}
                 />
-                {variant}
-              </Form.Label>
-            ))}
-          </div>
+                <span className="d-inline-block align-top">
+                  <MarkdownText>{variantText}</MarkdownText>
+                </span>
+              </label>
+            );
+          })}
+        <Button variant="outline-success" onClick={() => onNext(index, answer)}>
+          <ArrowRight />
+          {last ? "Завершить" : "Следующий вопрос"}
+        </Button>
+        {last && (
+          <Button
+            variant="outline-danger"
+            onClick={() => onFinish(index, answer)}
+          >
+            <SkipEndFill />
+            Завершить досрочно
+          </Button>
         )}
-        <Button variant="outline-success" onClick={()=>onNext(index, answer)}><ArrowRight/>{last?'Завершить':'Следующий вопрос'}</Button>
-        {last&&<Button variant="outline-danger" onClick={()=>onFinish(index, answer)}><SkipEndFill/>Завершить досрочно</Button>}
       </div>
     </div>
-  )
+  );
 }
 
 /**
@@ -65,54 +87,63 @@ export function Question({index, question, last, onNext, onFinish}){
  * @param {Object} props.question
  * @param {number|string} props.answer
  * @param {number|string} props.givenAnswer
- * 
+ *
  */
-export function Answer({index, question, answer, givenAnswer}){
+export function Answer({ index, question, answer, givenAnswer }) {
+  const isCorrect = answer == givenAnswer;
+
   return (
-    <div className="card mb-3" key={question.id}>
-      <Row className="card-body">
-        <h2 className="h5">{index + 1}. {question.text}</h2>
+    <>
+      <h2 className="d-flex gap-2 align-items-start">
+        <span>{index + 1}.</span>
+        <MarkdownText>{question.text}</MarkdownText>
+      </h2>
 
-        <div className="text-muted mb-2">Баллы: {question.points}</div>
+      <p className="text-muted">Баллы: {question.points}</p>
 
-        {question.type === "text" && (
-          answer==givenAnswer?<Form.Control
-            as="textarea" rows="3"
-            className="border border-success"
-            value={answer ?? ''}
-            readOnly={true}
-          />:<>
-            <Form.Control
-              as="textarea" rows="3"
-              className="border border-danger"
-              value={givenAnswer ?? <i>[Ответ не дан]</i>}
-              readOnly={true}
-            />
-            <Form.Control
-              as="textarea" rows="3"
-              className="border border-success"
-              value={answer ?? ""}
-              readOnly={true}
-            />
-          </>
-        )}
+      {question.type === "text" && (
+        <Form.Control
+          className={isCorrect ? "is-valid" : "is-invalid"}
+          value={givenAnswer || "[Ответ не дан]"}
+          readOnly
+        />
+      )}
 
-        {question.type === "choice" && (
-            question.options?.variants?.map((variant, variantIndex) => (
-                <Form.Check
-                  readOnly={true}
-                  type="radio"
-                  // name={`question-${question.id}`}
-                  checked={Number(givenAnswer) === variantIndex}
-                  label={variant} key={variantIndex}
-                style={answer==variantIndex?{color:'var(--bs-success)'}:
-                    (givenAnswer==variantIndex?{color:'var(--bs-danger)'}:{})}
-                  // style={answer==variantIndex?{backgroundColor:'var(--bs-success)',borderColor:'var(--bs-success)'}:
-                  //   (givenAnswer==variantIndex?{backgroundColor:'var(--bs-danger)',borderColor:'var(--bs-danger)'}:{})}
-                />
-            ))
-        )}
-      </Row>
-    </div>
+      {question.type === "choice" && (
+        <div>
+          {question.options?.variants?.map((variant, variantIndex) => {
+            const variantText =
+              typeof variant === "string" ? variant : (variant?.text ?? "");
+
+            const isUserAnswer = variantIndex == givenAnswer;
+            const isRightAnswer = variantIndex == answer;
+
+            let className = "answer-option";
+
+            if (isRightAnswer) {
+              className += " answer-option-correct";
+            }
+
+            if (isUserAnswer && !isRightAnswer) {
+              className += " answer-option-wrong";
+            }
+
+            return (
+              <div className={className} key={variantIndex}>
+                <MarkdownText>{variantText}</MarkdownText>
+
+                {isRightAnswer && (
+                  <small className="text-success ms-2">правильный ответ</small>
+                )}
+
+                {isUserAnswer && !isRightAnswer && (
+                  <small className="text-danger ms-2">ваш ответ</small>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </>
   );
 }

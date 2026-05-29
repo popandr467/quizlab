@@ -3,38 +3,41 @@ import React, { useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { Modal, Button, Form, InputGroup } from "react-bootstrap";
 
-const TYPE_SPECIFIC_DEFAULTS=Object.freeze({
-  text:{correctAnswer: ""},
-  choice:{
+const TYPE_SPECIFIC_DEFAULTS = Object.freeze({
+  text: { correctAnswer: "" },
+  choice: {
     variants: [{ text: "" }, { text: "" }],
     correct: -1,
   },
 });
 
-const DEFAULTS=Object.freeze({
-  title:'',
+const DEFAULTS = Object.freeze({
+  title: "",
   points: 0,
   type: "text",
-  type_specific:TYPE_SPECIFIC_DEFAULTS
+  type_specific: TYPE_SPECIFIC_DEFAULTS,
 });
 
-function fill_defaults(data){
-  const res={
+function fill_defaults(data) {
+  const res = {
     ...DEFAULTS,
     ...data,
-    type_specific:{
+    type_specific: {
       ...TYPE_SPECIFIC_DEFAULTS,
-      ...(data.type??data.type_specific?{[data.type]:data.type_specific[data.type]}:{})
-    }
+      ...((data.type ?? data.type_specific)
+        ? { [data.type]: data.type_specific[data.type] }
+        : {}),
+    },
   };
   return res;
 }
 
-function type_specific_checks(data){
-  if(data.type==='choice'){
+function type_specific_checks(data) {
+  if (data.type === "choice") {
     const hasCorrect =
       data.type_specific.choice.correct >= 0 &&
-      data.type_specific.choice.correct < data.type_specific.choice.variants.length;
+      data.type_specific.choice.correct <
+        data.type_specific.choice.variants.length;
     if (!hasCorrect) {
       alert("Пожалуйста, выберите правильный вариант ответа");
       return false;
@@ -103,8 +106,11 @@ const QuestionModal = ({ show, onHide, onSubmit, initialData }) => {
 
   // Обработка отправки формы
   const onFormSubmit = (data) => {
-    if(!type_specific_checks(data))return;
-    onSubmit({...data, type_specific:{[data.type]:data.type_specific[data.type]}});
+    if (!type_specific_checks(data)) return;
+    onSubmit({
+      ...data,
+      type_specific: { [data.type]: data.type_specific[data.type] },
+    });
     onHide(); // Закрываем окно после сохранения (родитель может переопределить)
   };
 
@@ -121,9 +127,10 @@ const QuestionModal = ({ show, onHide, onSubmit, initialData }) => {
           <Form.Group className="mb-3">
             <Form.Label>Заголовок вопроса</Form.Label>
             <Form.Control
-              type="text"
-              {...register("title", { required: "Заголовок обязателен" })}
-              isInvalid={!!errors.title}
+              as="textarea"
+              rows={5}
+              placeholder="Введите текст вопроса. Можно использовать Markdown."
+              {...register("title", { required: "Введите текст вопроса" })}
             />
             <Form.Control.Feedback type="invalid">
               {errors.title?.message}
@@ -173,11 +180,12 @@ const QuestionModal = ({ show, onHide, onSubmit, initialData }) => {
             <Form.Group className="mb-3">
               <Form.Label>Правильный ответ</Form.Label>
               <Form.Control
-                type="text"
+                as="textarea"
+                rows={4}
+                placeholder="Введите правильный ответ"
                 {...register("type_specific.text.correctAnswer", {
                   required: "Введите правильный ответ",
                 })}
-                isInvalid={!!errors.correctAnswer}
               />
               <Form.Control.Feedback type="invalid">
                 {errors.correctAnswer?.message}
@@ -192,18 +200,24 @@ const QuestionModal = ({ show, onHide, onSubmit, initialData }) => {
               {fields.map((field, index) => (
                 <InputGroup key={field.id} className="mb-2">
                   <Form.Control
-                    placeholder={`Вариант ${index + 1}`}
-                    {...register(`type_specific.choice.variants.${index}.text`, {
-                      required: "Вариант не может быть пустым",
-                    })}
-                    isInvalid={!!errors.options?.[index]}
+                    as="textarea"
+                    rows={1}
+                    placeholder={`Вариант ${index + 1}. Можно использовать Markdown.`}
+                    {...register(
+                      `type_specific.choice.variants.${index}.text`,
+                      {
+                        required: "Введите вариант ответа",
+                      },
+                    )}
                   />
                   <InputGroup.Text>
                     <Form.Check
                       type="radio"
                       name="correctOptionGroup"
                       checked={index == watch("type_specific.choice.correct")}
-                      onChange={() => setValue("type_specific.choice.correct", index)}
+                      onChange={() =>
+                        setValue("type_specific.choice.correct", index)
+                      }
                       aria-label="Правильный вариант"
                     />
                   </InputGroup.Text>
@@ -226,7 +240,8 @@ const QuestionModal = ({ show, onHide, onSubmit, initialData }) => {
               </Button>
               {!(
                 watch("type_specific.choice.correct") >= 0 &&
-                watch("type_specific.choice.correct") < watch("type_specific.choice.variants")?.length
+                watch("type_specific.choice.correct") <
+                  watch("type_specific.choice.variants")?.length
               ) &&
                 watch("type_specific.choice.variants")?.length > 0 && (
                   <div className="text-danger mt-2">
