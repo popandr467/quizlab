@@ -2,7 +2,7 @@
 import React, { useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { Modal, Button, Form, InputGroup } from "react-bootstrap";
-// import MarkdownTextarea from "./MarkdownTextarea";
+import MarkdownEditorField from "./MarkdownEditorField"
 
 const TYPE_SPECIFIC_DEFAULTS = Object.freeze({
   text: { correctAnswer: "" },
@@ -128,15 +128,18 @@ const QuestionModal = ({ show, onHide, onSubmit, initialData }) => {
           {/* Заголовок вопроса */}
           <Form.Group className="mb-3">
             <Form.Label>Заголовок вопроса</Form.Label>
-            <Form.Control
-              as="textarea"
-              rows={5}
+
+            <MarkdownEditorField
+              control={control}
+              name="title"
+              rules={{ required: "Введите текст вопроса" }}
+              height={220}
               placeholder="Введите текст вопроса. Можно использовать Markdown."
-              {...register("title", { required: "Введите текст вопроса" })}
             />
-            <Form.Control.Feedback type="invalid">
-              {errors.title?.message}
-            </Form.Control.Feedback>
+
+            {errors.title && (
+              <div className="text-danger small mt-1">{errors.title.message}</div>
+            )}
           </Form.Group>
 
           <Form.Group className="mb-3">
@@ -201,16 +204,12 @@ const QuestionModal = ({ show, onHide, onSubmit, initialData }) => {
               <Form.Label>Варианты ответов (от 2 до 10)</Form.Label>
               {fields.map((field, index) => (
                 <InputGroup key={field.id} className="mb-2">
-                  <Form.Control
-                    as="textarea"
-                    rows={1}
+                  <MarkdownEditorField
+                    control={control}
+                    name={`type_specific.choice.variants.${index}.text`}
+                    rules={{ required: "Введите вариант ответа" }}
+                    height={120}
                     placeholder={`Вариант ${index + 1}. Можно использовать Markdown.`}
-                    {...register(
-                      `type_specific.choice.variants.${index}.text`,
-                      {
-                        required: "Введите вариант ответа",
-                      },
-                    )}
                   />
                   <InputGroup.Text>
                     <Form.Check
