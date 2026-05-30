@@ -28,6 +28,12 @@ function fill_defaults(data) {
       ...((data.type ?? data.type_specific)
         ? { [data.type]: data.type_specific[data.type] }
         : {}),
+      ...(data.type_specific?.variants?
+        Object.assign(
+          data.type_specific.variants,
+          {0:{ text: "" }, 1:{ text: "" }}
+        ):
+        {}),
     },
   };
   return res;
@@ -84,13 +90,12 @@ const QuestionModal = ({ show, onHide, onSubmit, initialData }) => {
 
   // При переключении на тип "выбор" добавляем недостающие варианты до минимума
   useEffect(() => {
-    if (questionType === "choice" && fields.length < 2) {
-      const missing = 2 - fields.length;
-      for (let i = 0; i < missing; i++) {
-        append("");
-      }
+    if (!show) return;
+    if (initialData) reset(fill_defaults(initialData));
+    else {
+      reset();
     }
-  }, [questionType, fields.length, append]);
+  }, [initialData, reset, show]);
 
   // Добавление варианта (макс. 10)
   const addOption = () => {
