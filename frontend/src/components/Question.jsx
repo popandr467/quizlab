@@ -15,11 +15,14 @@ import MarkdownText from "./MarkdownText";
  * @param {(index:Number,answer:Number|String)=>void} props.onFinish
  */
 export function Question({ index, question, last, onNext, onFinish }) {
+  console.log(question);
   const [answer, setAnswer] = useState(() => {
     switch (question.type) {
       case "text":
         return "";
       case "choice":
+        return 0;
+      case 'multichoice':
         return 0;
     }
   });
@@ -61,12 +64,36 @@ export function Question({ index, question, last, onNext, onFinish }) {
                 </span>
               </label>
             );
-          })}
+          })
+        }
+
+        {question.type === "multichoice" &&
+          question.options?.variants?.map((variant, variantIndex) => {
+            const variantText =
+              typeof variant === "string" ? variant : (variant?.text ?? "");
+
+            return (
+              <label className="d-block mb-2" key={variantIndex}>
+                <input
+                  className="form-check-input me-2"
+                  type="checkbox"
+                  name={`question-${question.id}`}
+                  checked={Boolean((answer>>variantIndex)&1)}
+                  onChange={() => setAnswer(prev=>prev^(1<<variantIndex))}
+                />
+                <span className="d-inline-block align-top">
+                  <MarkdownText>{variantText}</MarkdownText>
+                </span>
+              </label>
+            );
+          })
+        }
+        
         <Button variant="outline-success" onClick={() => onNext(index, answer)}>
           <ArrowRight />
           {last ? "Завершить" : "Следующий вопрос"}
         </Button>
-        {last && (
+        {!last && (
           <Button
             variant="outline-danger"
             onClick={() => onFinish(index, answer)}
@@ -117,6 +144,42 @@ export function Answer({ index, question, answer, givenAnswer }) {
 
             const isUserAnswer = variantIndex == givenAnswer;
             const isRightAnswer = variantIndex == answer;
+
+            let className = "answer-option";
+
+            if (isRightAnswer) {
+              className += " answer-option-correct";
+            }
+
+            if (isUserAnswer && !isRightAnswer) {
+              className += " answer-option-wrong";
+            }
+
+            return (
+              <div className={className} key={variantIndex}>
+                <MarkdownText>{variantText}</MarkdownText>
+
+                {isRightAnswer && (
+                  <small className="text-success ms-2">правильный ответ</small>
+                )}
+
+                {isUserAnswer && !isRightAnswer && (
+                  <small className="text-danger ms-2">ваш ответ</small>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {question.type === "multichoice" && (
+        <div>
+          {question.options?.variants?.map((variant, variantIndex) => {
+            const variantText =
+              typeof variant === "string" ? variant : (variant?.text ?? "");
+
+            const isUserAnswer = Boolean((givenAnswer>>variantIndex)&1);
+            const isRightAnswer = Boolean((answer>>variantIndex)&1);
 
             let className = "answer-option";
 

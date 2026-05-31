@@ -39,7 +39,7 @@ async function createTables(fastify) {
         id INT PRIMARY KEY AUTO_INCREMENT,
         test_id INT NOT NULL,
         text TEXT NOT NULL,
-        type ENUM('text', 'number', 'choice', 'matching', 'crossword') NOT NULL,
+        type ENUM('text', 'number', 'choice', 'matching', 'crossword', 'multichoice') NOT NULL,
         points INT DEFAULT 1,
         options JSON,
         correct_answer TEXT NOT NULL,

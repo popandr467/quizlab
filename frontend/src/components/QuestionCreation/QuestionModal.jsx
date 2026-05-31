@@ -2,7 +2,10 @@
 import React, { useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { Modal, Button, Form, InputGroup } from "react-bootstrap";
-import MarkdownEditorField from "./MarkdownEditorField"
+import MarkdownEditorField from "../MarkdownEditorField";
+import TextQuestion from "./TextQuestion";
+import ChoiceQuestion from "./ChoiceQuestion";
+import MultiChoiceQuestion from "./MultiChoiceQuestion";
 
 const TYPE_SPECIFIC_DEFAULTS = Object.freeze({
   text: { correctAnswer: "" },
@@ -10,6 +13,10 @@ const TYPE_SPECIFIC_DEFAULTS = Object.freeze({
     variants: [{ text: "" }, { text: "" }],
     correct: -1,
   },
+  multichoice: {
+    variants: [{ text: "" }, { text: "" }],
+    correct: 0,
+  }
 });
 
 const DEFAULTS = Object.freeze({
@@ -28,12 +35,13 @@ function fill_defaults(data) {
       ...((data.type ?? data.type_specific)
         ? { [data.type]: data.type_specific[data.type] }
         : {}),
-      ...(data.type_specific?.variants?
-        Object.assign(
-          data.type_specific.variants,
-          {0:{ text: "" }, 1:{ text: "" }}
-        ):
-        {}),
+      // ...(data.type_specific?.choice?.variants?
+      //   {choice: Object.assign(
+      //     data.type_specific.choice.variants,
+      //     {0:{ text: "" }, 1:{ text: "" }}
+      //   )}:
+      //   {}
+      // ),
     },
   };
   return res;
@@ -50,6 +58,7 @@ function type_specific_checks(data) {
       return false;
     }
   }
+  if(data.type === 'multichoice' && data.type_specific.multichoice.correct===0) alert('Выберите хотя бы один вариант')
   return true;
 }
 
@@ -72,44 +81,14 @@ const QuestionModal = ({ show, onHide, onSubmit, initialData }) => {
   } = useForm({
     defaultValues: DEFAULTS,
   });
-
   const questionType = watch("type");
-  const { fields, append, remove } = useFieldArray({
-    control,
-    name: "type_specific.choice.variants",
-  });
-  // Сброс формы при открытии (создание или редактирование)
-  useEffect(() => {
-    if (questionType === "choice" && fields.length < 2) {
-      const missing = 2 - fields.length;
-      for (let i = 0; i < missing; i++) {
-        append({ text: "" });
-      }
-    }
-  }, [questionType, fields.length, append]);
 
   // При переключении на тип "выбор" добавляем недостающие варианты до минимума
   useEffect(() => {
     if (!show) return;
     if (initialData) reset(fill_defaults(initialData));
-    else {
-      reset();
-    }
+    else reset(DEFAULTS);
   }, [initialData, reset, show]);
-
-  // Добавление варианта (макс. 10)
-  const addOption = () => {
-    if (fields.length < 10) {
-      append({ text: "" });
-    }
-  };
-
-  // Удаление варианта (мин. 2)
-  const removeOption = (index) => {
-    if (fields.length > 2) {
-      remove(index);
-    }
-  };
 
   // Обработка отправки формы
   const onFormSubmit = (data) => {
@@ -182,79 +161,42 @@ const QuestionModal = ({ show, onHide, onSubmit, initialData }) => {
                 {...register("type")}
                 id="type-choice"
               />
+              <Form.Check
+                inline
+                label="Мультивыбор"
+                type="radio"
+                value="multichoice"
+                {...register("type")}
+                id="type-multichoice"
+              />
             </div>
           </Form.Group>
 
           {/* Поля для типа "текст" */}
           {questionType === "text" && (
-            <Form.Group className="mb-3">
-              <Form.Label>Правильный ответ</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={4}
-                placeholder="Введите правильный ответ"
-                {...register("type_specific.text.correctAnswer", {
-                  required: "Введите правильный ответ",
-                })}
-              />
-              <Form.Control.Feedback type="invalid">
-                {errors.correctAnswer?.message}
-              </Form.Control.Feedback>
-            </Form.Group>
+            <TextQuestion
+              control={control}
+              register={register}
+              errors={errors}
+            />
           )}
 
           {/* Поля для типа "выбор" */}
           {questionType === "choice" && (
-            <div>
-              <Form.Label>Варианты ответов (от 2 до 10)</Form.Label>
-              {fields.map((field, index) => (
-                <InputGroup key={field.id} className="mb-2">
-                  <MarkdownEditorField
-                    control={control}
-                    name={`type_specific.choice.variants.${index}.text`}
-                    rules={{ required: "Введите вариант ответа" }}
-                    height={120}
-                    placeholder={`Вариант ${index + 1}. Можно использовать Markdown.`}
-                  />
-                  <InputGroup.Text>
-                    <Form.Check
-                      type="radio"
-                      name="correctOptionGroup"
-                      checked={index == watch("type_specific.choice.correct")}
-                      onChange={() =>
-                        setValue("type_specific.choice.correct", index)
-                      }
-                      aria-label="Правильный вариант"
-                    />
-                  </InputGroup.Text>
-                  <Button
-                    variant="outline-danger"
-                    onClick={() => removeOption(index)}
-                    disabled={fields.length <= 2}
-                  >
-                    Удалить
-                  </Button>
-                </InputGroup>
-              ))}
-              <Button
-                variant="secondary"
-                onClick={addOption}
-                disabled={fields.length >= 10}
-                className="mt-2"
-              >
-                Добавить вариант
-              </Button>
-              {!(
-                watch("type_specific.choice.correct") >= 0 &&
-                watch("type_specific.choice.correct") <
-                  watch("type_specific.choice.variants")?.length
-              ) &&
-                watch("type_specific.choice.variants")?.length > 0 && (
-                  <div className="text-danger mt-2">
-                    Необходимо выбрать правильный вариант
-                  </div>
-                )}
-            </div>
+            <ChoiceQuestion
+              control={control}
+              setValue={setValue}
+              watch={watch}
+            />
+          )}
+
+          {/* Поля для типа "мультивыбор" */}
+          {questionType === "multichoice" && (
+            <MultiChoiceQuestion
+              control={control}
+              setValue={setValue}
+              watch={watch}
+            />
           )}
         </Modal.Body>
         <Modal.Footer>

@@ -8,7 +8,7 @@ import Button from "react-bootstrap/Button";
 import { api } from "../api";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 
-import QuestionModal from "../components/QuestionModal";
+import QuestionModal from "../components/QuestionCreation/QuestionModal";
 
 import { ending } from "../utils";
 
@@ -304,6 +304,7 @@ export default function CreateTest() {
                             className="btn-sm edit-question-btn"
                             title="Редактировать"
                             onClick={() => {
+                              console.log(question);
                               setEditing(idx);
                               setCurrentQuestion(question);
                               setModalShown(true);

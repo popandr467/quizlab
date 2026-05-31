@@ -30,7 +30,7 @@ function toPublicQuestion(question) {
     type: question.type,
     points: question.points ?? 1,
     options:
-      question.type === "choice"
+      question.type === "choice" || question.type === 'multichoice'
         ? {
             variants: Array.isArray(options) ? options : [],
           }
@@ -46,7 +46,7 @@ function toPublicAnswer(question) {
     type: question.type,
     points: question.points ?? 1,
     options:
-      question.type === "choice"
+      question.type === "choice" || question.type === 'multichoice'
         ? {
             variants: Array.isArray(options) ? options : [],
           }
@@ -206,8 +206,7 @@ module.exports = async function apiRoutes(fastify) {
     }
   });
 
-  fastify.post(
-    "/login",
+  fastify.post("/login",
     {
       schema: {
         body: {
@@ -250,8 +249,7 @@ module.exports = async function apiRoutes(fastify) {
     },
   );
 
-  fastify.post(
-    "/register",
+  fastify.post("/register",
     {
       schema: {
         body: {
@@ -342,8 +340,7 @@ module.exports = async function apiRoutes(fastify) {
     return { ok: true };
   });
 
-  fastify.post(
-    "/addtest",
+  fastify.post("/addtest",
     {
       schema: {
         body: {
@@ -390,6 +387,21 @@ module.exports = async function apiRoutes(fastify) {
                         },
                       },
                       choice: {
+                        type: "object",
+                        required: ["correct", "variants"],
+                        properties: {
+                          correct: { type: "number" },
+                          variants: {
+                            type: "array",
+                            items: {
+                              type: "object",
+                              required: ["text"],
+                              properties: { text: { type: "string" } },
+                            },
+                          },
+                        },
+                      },
+                      multichoice: {
                         type: "object",
                         required: ["correct", "variants"],
                         properties: {
@@ -459,7 +471,7 @@ module.exports = async function apiRoutes(fastify) {
           title,
           type,
           points,
-          type_specific: { text: { correctAnswer } = {}, choice: options },
+          type_specific: { text: { correctAnswer } = {}, choice: c_options, multichoice: mc_options },
         } of questions) {
           if (type === "text")
             await conn.query(
@@ -469,7 +481,7 @@ module.exports = async function apiRoutes(fastify) {
               `,
               [test_id, title, "text", points, correctAnswer],
             );
-          else if (type === "choice")
+          else if (type === "choice" || type === 'multichoice')
             await conn.query(
               `
               INSERT INTO questions (test_id,text,type,points,correct_answer,options)
@@ -478,12 +490,13 @@ module.exports = async function apiRoutes(fastify) {
               [
                 test_id,
                 title,
-                "choice",
+                type,
                 points,
-                String(options.correct),
-                JSON.stringify(options.variants.map((i) => i.text)),
+                String((c_options??mc_options).correct),
+                JSON.stringify((c_options??mc_options).variants.map((i) => i.text)),
               ],
             );
+          else console.error(`unknown question type: ${type}`);
         }
         return { ok: true, testId: test_id };
       } finally {
@@ -548,8 +561,7 @@ module.exports = async function apiRoutes(fastify) {
     }
   });
 
-  fastify.post(
-    "/attempt/:aid/giveAnswer/:qid",
+  fastify.post("/attempt/:aid/giveAnswer/:qid",
     {
       schema: {
         body: {
@@ -602,7 +614,6 @@ module.exports = async function apiRoutes(fastify) {
       } finally {
         conn.release();
       }
-      return reply.code(206).send();
     },
   );
 
@@ -664,15 +675,15 @@ module.exports = async function apiRoutes(fastify) {
         `SELECT q.points, q.correct_answer, a.answer FROM questions q
         LEFT JOIN answers a ON a.question_id=q.id AND a.attempt_id=?
         WHERE q.test_id=?`,
-        [attempt.test_id, attemptId],
+        [attemptId, attempt.test_id],
       );
-      let score = 0,
-        max_score = 0;
+      let score = 0, max_score = 0;
+      console.log(attempt.test_id, attemptId);
+      console.log(answers);
       for (const { points, answer, correct_answer } of answers) {
-        console.log({ points, answer, correct_answer });
         max_score += points;
         if (correct_answer === answer) score += points;
-        console.log({ score, max_score });
+        console.log(answer, correct_answer);
       }
       await conn.query(
         "UPDATE attempts SET finished_at=?, score=?, max_score=?, percentage=? WHERE id=?",
