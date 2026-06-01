@@ -1,11 +1,16 @@
 import { urlEncode as url } from "./utils";
 
 async function request(path, options = {}) {
+  const isFormData =
+    typeof FormData !== "undefined" && options.body instanceof FormData;
+
   const response = await fetch(path, {
     credentials: "include",
     ...options,
     headers: {
-      ...(options.body ? { "Content-Type": "application/json" } : {}),
+      ...(!isFormData && options.body
+        ? { "Content-Type": "application/json" }
+        : {}),
       ...(options.headers || {}),
     },
   });
@@ -55,6 +60,16 @@ export const api = {
 
   testForPassing(id) {
     return request(url`/api/tests/${id}/take`);
+  },
+
+  uploadImage(file) {
+    const formData = new FormData();
+    formData.append("image", file);
+
+    return request("/api/uploads/images", {
+      method: "POST",
+      body: formData,
+    });
   },
 
   // submitTest(id, answers) {

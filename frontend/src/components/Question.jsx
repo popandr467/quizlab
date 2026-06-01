@@ -14,6 +14,29 @@ import MarkdownText from "./MarkdownText";
  * @param {(index:Number,answer:Number|String)=>void} props.onNext
  * @param {(index:Number,answer:Number|String)=>void} props.onFinish
  */
+
+function QuestionImages({ images }) {
+  const list = Array.isArray(images) ? images : [];
+
+  if (list.length === 0) return null;
+
+  return (
+    <div className="d-flex flex-wrap gap-2 mb-3">
+      {list.map((image, index) => (
+        <img
+          key={image.id ?? image.url ?? index}
+          src={image.url}
+          alt={image.altText ?? ""}
+          title={image.altText ?? ""}
+          loading="lazy"
+          className="img-fluid rounded border"
+          style={{ maxHeight: 260, objectFit: "contain" }}
+        />
+      ))}
+    </div>
+  );
+}
+
 export function Question({ index, question, last, onNext, onFinish }) {
   console.log(question);
   const [answer, setAnswer] = useState(() => {

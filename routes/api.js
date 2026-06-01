@@ -1,3 +1,7 @@
+const fs = require("node:fs");
+const path = require("node:path");
+const { pipeline } = require("node:stream/promises");
+
 const bcrypt = require("bcrypt");
 const { v4: uuidv4 } = require("uuid");
 
@@ -29,8 +33,9 @@ function toPublicQuestion(question) {
     text: question.text,
     type: question.type,
     points: question.points ?? 1,
+    images: Array.isArray(question.images) ? question.images : [],
     options:
-      question.type === "choice" || question.type === 'multichoice'
+      question.type === "choice" || question.type === "multichoice"
         ? {
             variants: Array.isArray(options) ? options : [],
           }
@@ -42,11 +47,13 @@ function toPublicAnswer(question) {
   const options = parseJsonField(question.options, {});
 
   return {
+    id: question.id,
     text: question.text,
     type: question.type,
     points: question.points ?? 1,
+    images: Array.isArray(question.images) ? question.images : [],
     options:
-      question.type === "choice" || question.type === 'multichoice'
+      question.type === "choice" || question.type === "multichoice"
         ? {
             variants: Array.isArray(options) ? options : [],
           }
@@ -139,6 +146,81 @@ function normalizeUsername(value) {
     };
 
   return { username };
+}
+
+function normalizeQuestionImages(images) {
+  if (!Array.isArray(images)) return [];
+
+  return images
+    .slice(0, 10)
+    .map((image, index) => {
+      if (typeof image === "string") {
+        return {
+          url: image,
+          altText: "",
+          sortOrder: index,
+        };
+      }
+
+      return {
+        url: image?.url,
+        altText: image?.altText ?? image?.alt_text ?? "",
+        sortOrder: image?.sortOrder ?? image?.sort_order ?? index,
+      };
+    })
+    .filter((image) => {
+      return (
+        typeof image.url === "string" &&
+        image.url.startsWith("/uploads/") &&
+        image.url.length <= 500
+      );
+    })
+    .map((image, index) => {
+      const sortOrderNumber = Number(image.sortOrder);
+
+      return {
+        url: image.url,
+        altText: String(image.altText ?? "").slice(0, 255),
+        sortOrder: Number.isFinite(sortOrderNumber) ? sortOrderNumber : index,
+      };
+    });
+}
+
+async function attachImagesToQuestions(conn, questions) {
+  if (!questions.length) return questions;
+
+  const questionIds = questions.map((question) => question.id);
+  const placeholders = questionIds.map(() => "?").join(", ");
+
+  const [images] = await conn.query(
+    `
+      SELECT id, question_id, url, alt_text, sort_order
+      FROM question_images
+      WHERE question_id IN (${placeholders})
+      ORDER BY question_id ASC, sort_order ASC, id ASC
+    `,
+    questionIds,
+  );
+
+  const imagesByQuestionId = new Map();
+
+  for (const image of images) {
+    const list = imagesByQuestionId.get(image.question_id) ?? [];
+
+    list.push({
+      id: image.id,
+      url: image.url,
+      altText: image.alt_text ?? "",
+      sortOrder: image.sort_order ?? 0,
+    });
+
+    imagesByQuestionId.set(image.question_id, list);
+  }
+
+  return questions.map((question) => ({
+    ...question,
+    images: imagesByQuestionId.get(question.id) ?? [],
+  }));
 }
 
 function publicUser(user) {
@@ -357,63 +439,64 @@ module.exports = async function apiRoutes(fastify) {
             "questions",
           ],
           properties: {
-            deadline: { type: "string" },
-            timeLimit: { type: "number" },
-            name: { type: "string" },
-            description: { type: "string" },
-            attemptsCount: { type: "number" },
-            shuffleQuestions: { type: "boolean" },
-            showResult: { type: "boolean" },
-            showAnswers: { type: "boolean" },
-            questions: {
+            title: { type: "string" },
+            type: { type: "string" },
+            points: { type: "number", minimum: 0 },
+
+            images: {
               type: "array",
-              minItems: 1,
+              maxItems: 10,
               items: {
                 type: "object",
-                required: ["title", "type", "points", "type_specific"],
+                required: ["url"],
                 properties: {
-                  title: { type: "string" },
-                  type: { type: "string" },
-                  points: { type: "number", minimum: 0 },
-                  type_specific: {
-                    type: "object",
-                    required: [],
-                    properties: {
-                      text: {
+                  url: { type: "string" },
+                  altText: { type: "string" },
+                  sortOrder: { type: "number" },
+                },
+              },
+            },
+
+            type_specific: {
+              type: "object",
+              required: [],
+              properties: {
+                text: {
+                  type: "object",
+                  required: ["correctAnswer"],
+                  properties: {
+                    correctAnswer: { type: "string" },
+                  },
+                },
+                choice: {
+                  type: "object",
+                  required: ["correct", "variants"],
+                  properties: {
+                    correct: { type: "number" },
+                    variants: {
+                      type: "array",
+                      items: {
                         type: "object",
-                        required: ["correctAnswer"],
+                        required: ["text"],
                         properties: {
-                          correctAnswer: { type: "string" },
+                          text: { type: "string" },
                         },
                       },
-                      choice: {
+                    },
+                  },
+                },
+                multichoice: {
+                  type: "object",
+                  required: ["correct", "variants"],
+                  properties: {
+                    correct: { type: "number" },
+                    variants: {
+                      type: "array",
+                      items: {
                         type: "object",
-                        required: ["correct", "variants"],
+                        required: ["text"],
                         properties: {
-                          correct: { type: "number" },
-                          variants: {
-                            type: "array",
-                            items: {
-                              type: "object",
-                              required: ["text"],
-                              properties: { text: { type: "string" } },
-                            },
-                          },
-                        },
-                      },
-                      multichoice: {
-                        type: "object",
-                        required: ["correct", "variants"],
-                        properties: {
-                          correct: { type: "number" },
-                          variants: {
-                            type: "array",
-                            items: {
-                              type: "object",
-                              required: ["text"],
-                              properties: { text: { type: "string" } },
-                            },
-                          },
+                          text: { type: "string" },
                         },
                       },
                     },
@@ -421,10 +504,6 @@ module.exports = async function apiRoutes(fastify) {
                 },
               },
             },
-            // uname: { type: "string", minLength: 1 },
-            // username: { type: "string", minLength: 1 },
-            // email: { type: "string", format: "email" },
-            // password: { type: "string", minLength: 1 },
           },
         },
       },
@@ -432,7 +511,9 @@ module.exports = async function apiRoutes(fastify) {
     async (request, reply) => {
       const { authData } = await fastify.get_auth_data(request);
 
-      if (!authData) return reply.code(401).send({ error: "Не авторизован" });
+      if (!authData) {
+        return reply.code(401).send({ error: "Не авторизован" });
+      }
 
       const conn = await fastify.mysql.getConnection();
 
@@ -448,61 +529,136 @@ module.exports = async function apiRoutes(fastify) {
           showAnswers,
           questions,
         } = request.body;
-        const [result] = await conn.query(
-          `
-          INSERT INTO tests (title,description,author_id,max_attempts,time_limit,created_at,shuffle_questions,show_result,show_answers)
-          VALUES (?,?,?,?,?,?,?,?,?)
-          `,
-          [
-            name,
-            description,
-            authData.id,
-            attemptsCount,
-            timeLimit,
-            new Date(),
-            shuffleQuestions,
-            showResult,
-            showAnswers,
-          ],
-        );
 
-        const test_id = result.insertId;
-        for (const {
-          title,
-          type,
-          points,
-          type_specific: { text: { correctAnswer } = {}, choice: c_options, multichoice: mc_options },
-        } of questions) {
-          if (type === "text")
-            await conn.query(
-              `
-                INSERT INTO questions (test_id,text,type,points,correct_answer)
-                VALUES (?,?,?,?,?)
-              `,
-              [test_id, title, "text", points, correctAnswer],
-            );
-          else if (type === "choice" || type === 'multichoice')
-            await conn.query(
-              `
-              INSERT INTO questions (test_id,text,type,points,correct_answer,options)
-              VALUES (?,?,?,?,?,?)
-              `,
-              [
-                test_id,
+        await conn.beginTransaction();
+
+        try {
+          const [result] = await conn.query(
+            `
+              INSERT INTO tests (
                 title,
-                type,
-                points,
-                String((c_options??mc_options).correct),
-                JSON.stringify((c_options??mc_options).variants.map((i) => i.text)),
-              ],
-            );
-          else console.error(`unknown question type: ${type}`);
+                description,
+                author_id,
+                max_attempts,
+                time_limit,
+                created_at,
+                shuffle_questions,
+                show_result,
+                show_answers
+              )
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `,
+            [
+              name,
+              description,
+              authData.id,
+              attemptsCount,
+              timeLimit,
+              new Date(),
+              shuffleQuestions,
+              showResult,
+              showAnswers,
+            ],
+          );
+
+          const test_id = result.insertId;
+
+          for (const question of questions) {
+            const {
+              title,
+              type,
+              points,
+              images = [],
+              type_specific: {
+                text: { correctAnswer } = {},
+                choice: c_options,
+                multichoice: mc_options,
+              },
+            } = question;
+
+            let questionResult;
+
+            if (type === "text") {
+              [questionResult] = await conn.query(
+                `
+                  INSERT INTO questions (
+                    test_id,
+                    text,
+                    type,
+                    points,
+                    correct_answer
+                  )
+                  VALUES (?, ?, ?, ?, ?)
+                `,
+                [test_id, title, "text", points, correctAnswer],
+              );
+            } else if (type === "choice" || type === "multichoice") {
+              const options = c_options ?? mc_options;
+
+              [questionResult] = await conn.query(
+                `
+                  INSERT INTO questions (
+                    test_id,
+                    text,
+                    type,
+                    points,
+                    correct_answer,
+                    options
+                  )
+                  VALUES (?, ?, ?, ?, ?, ?)
+                `,
+                [
+                  test_id,
+                  title,
+                  type,
+                  points,
+                  String(options.correct),
+                  JSON.stringify(options.variants.map((i) => i.text)),
+                ],
+              );
+            } else {
+              console.error(`unknown question type: ${type}`);
+              continue;
+            }
+
+            const questionId = questionResult.insertId;
+            const normalizedImages = normalizeQuestionImages(images);
+
+            for (const image of normalizedImages) {
+              await conn.query(
+                `
+                  INSERT INTO question_images (
+                    question_id,
+                    url,
+                    alt_text,
+                    sort_order
+                  )
+                  VALUES (?, ?, ?, ?)
+                `,
+                [
+                  questionId,
+                  image.url,
+                  image.altText,
+                  image.sortOrder,
+                ],
+              );
+            }
+          }
+
+          await conn.commit();
+
+          return {
+            ok: true,
+            testId: test_id,
+          };
+        } catch (error) {
+          await conn.rollback();
+          throw error;
         }
-        return { ok: true, testId: test_id };
       } finally {
         conn.release();
       }
-    },
+    }
   );
 
   fastify.get("/tests/:id/take", async (request, reply) => {
@@ -534,12 +690,18 @@ module.exports = async function apiRoutes(fastify) {
       )
         return reply.code(403).send({ error: "Количество попыток исчерпано" });
 
-      const [questions] = await conn.query(
-        `SELECT id, text, type, points, options
-        FROM questions WHERE test_id = ?
-        ORDER BY id ASC`,
+      const [questionsRaw] = await conn.query(
+        `
+          SELECT id, text, type, points, options
+          FROM questions
+          WHERE test_id = ?
+          ORDER BY id ASC
+        `,
         [testId],
       );
+
+    const questions = await attachImagesToQuestions(conn, questionsRaw);
+    
 
       const [result] = await conn.query(
         "INSERT INTO attempts (test_id, user_id) VALUES (?,?)",
@@ -791,65 +953,114 @@ module.exports = async function apiRoutes(fastify) {
   });
 
   fastify.get("/report/:id", async (request, reply) => {
-    const attemptId = Number(request.params.id);
-    if (!Number.isInteger(attemptId) || attemptId <= 0)
-      return reply.code(400).send({ error: "Некорректный id попытки" });
-    let { authData } = await fastify.get_auth_data(request);
-    if (!authData) authData = { id: null };
-    const conn = await fastify.mysql.getConnection();
-    try {
-      const [[attempt = null]] = await conn.query(
-        `SELECT a.user_id, a.finished_at, a.test_id, a.percentage, a.score, a.max_score, t.author_id, t.show_result, t.show_answers FROM attempts a
-        JOIN tests t ON a.test_id=t.id
-        WHERE a.id=?`,
+  const attemptId = Number(request.params.id);
+
+  if (!Number.isInteger(attemptId) || attemptId <= 0) {
+    return reply.code(400).send({ error: "Некорректный id попытки" });
+  }
+
+  let { authData } = await fastify.get_auth_data(request);
+
+  if (!authData) {
+    authData = { id: null };
+  }
+
+  const conn = await fastify.mysql.getConnection();
+
+  try {
+    const [[attempt = null]] = await conn.query(
+      `
+        SELECT
+          a.user_id,
+          a.finished_at,
+          a.test_id,
+          a.percentage,
+          a.score,
+          a.max_score,
+          t.author_id,
+          t.show_result,
+          t.show_answers
+        FROM attempts a
+        JOIN tests t ON a.test_id = t.id
+        WHERE a.id = ?
+      `,
+      [attemptId],
+    );
+
+    if (!attempt) {
+      return reply.code(404).send({ error: "Попытка не найдена" });
+    }
+
+    if (!attempt.finished_at) {
+      return reply.code(400).send({ error: "Попытка не завершена" });
+    }
+
+    const showResult = attempt.show_result || attempt.author_id == authData.id;
+    const showAnswers = attempt.show_answers || attempt.author_id == authData.id;
+
+    let reportUser = null;
+
+    if (attempt.user_id !== authData.id) {
+      const [[user = null]] = await conn.query(
+        `
+          SELECT name, username
+          FROM users
+          WHERE id = ?
+        `,
+        [attempt.user_id],
+      );
+
+      reportUser = publicUser(user);
+    }
+
+    let publicAnswers = [];
+
+    if (showAnswers) {
+      const [answersRaw] = await conn.query(
+        `
+          SELECT
+            q.id,
+            a.answer,
+            q.correct_answer,
+            q.text,
+            q.type,
+            q.points,
+            q.options
+          FROM answers a
+          JOIN questions q ON a.question_id = q.id
+          WHERE a.attempt_id = ?
+          ORDER BY q.id ASC
+        `,
         [attemptId],
       );
-      if (!attempt)
-        return reply.code(404).send({ error: "Попытка не найдена" });
-      if (!attempt.finished_at)
-        return reply.code(400).send({ error: "Попытка не завершена" });
-      const showResult =
-        attempt.show_result || attempt.author_id == authData.id;
-      const showAnswers =
-        attempt.show_answers || attempt.author_id == authData.id;
-      return {
-        ...(attempt.user_id !== authData.id
-          ? {
-              user: publicUser(
-                (
-                  await conn.query(
-                    "SELECT name, username FROM users WHERE id=?",
-                    [attempt.user_id],
-                  )
-                )[0][0],
-              ),
-            }
-          : {}),
-        ...(showResult
-          ? {
-              result: {
-                percentage: attempt.percentage,
-                score: attempt.score,
-                max_score: attempt.max_score,
-              },
-            }
-          : {}),
-        ...(showAnswers
-          ? {
-              answers: (
-                await conn.query(
-                  `SELECT a.answer, q.correct_answer, q.text, q.type, q.points, q.options
-            FROM answers a JOIN questions q ON a.question_id=q.id WHERE a.attempt_id=?`,
-                  [attemptId],
-                )
-              )[0].map(toPublicAnswer),
-            }
-          : {}),
-      };
-    } finally {
-      conn.release();
+
+      const answersWithImages = await attachImagesToQuestions(conn, answersRaw);
+      publicAnswers = answersWithImages.map(toPublicAnswer);
     }
-  });
+
+    return {
+      ...(reportUser ? { user: reportUser } : {}),
+
+      ...(showResult
+        ? {
+            result: {
+              percentage: attempt.percentage,
+              score: attempt.score,
+              max_score: attempt.max_score,
+            },
+          }
+        : {}),
+
+      ...(showAnswers
+        ? {
+            answers: publicAnswers,
+          }
+        : {}),
+    };
+  } finally {
+    conn.release();
+  }
+});
 
   fastify.delete("/tests/:id", async (request, reply) => {
     const testId = Number(request.params.id);
@@ -909,4 +1120,55 @@ module.exports = async function apiRoutes(fastify) {
       conn.release();
     }
   });
+
+  fastify.post("/uploads/images", async (request, reply) => {
+  const { authData } = await fastify.get_auth_data(request);
+
+  if (!authData) {
+    return reply.code(401).send({ error: "Не авторизован" });
+  }
+
+  const file = await request.file({
+    limits: {
+      fileSize: 5 * 1024 * 1024,
+    },
+  });
+
+  if (!file) {
+    return reply.code(400).send({ error: "Файл не передан" });
+  }
+
+  const allowedTypes = {
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "image/webp": ".webp",
+    "image/gif": ".gif",
+  };
+
+  const ext = allowedTypes[file.mimetype];
+
+  if (!ext) {
+    file.file.resume();
+    return reply.code(415).send({
+      error: "Можно загружать только jpg, png, webp или gif",
+    });
+  }
+
+  const uploadsDir = path.join(__dirname, "..", "public", "uploads");
+  await fs.promises.mkdir(uploadsDir, { recursive: true });
+
+  const filename = `${authData.id}-${Date.now()}-${uuidv4()}${ext}`;
+  const filepath = path.join(uploadsDir, filename);
+
+  await pipeline(file.file, fs.createWriteStream(filepath));
+
+  if (file.file.truncated) {
+    await fs.promises.unlink(filepath).catch(() => {});
+    return reply.code(413).send({ error: "Файл слишком большой" });
+  }
+
+  return {
+    url: `/uploads/${filename}`,
+  };
+});
 };

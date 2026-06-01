@@ -2,6 +2,7 @@ require("dotenv").config();
 
 const fs = require("node:fs");
 const path = require("node:path");
+
 const fastify = require("fastify")({
   logger: true,
 });
@@ -10,6 +11,15 @@ require("./plugin-initiators/init-all")(fastify);
 
 fastify.register(require("./routes/api"), {
   prefix: "/api",
+});
+
+const uploadsDir = path.join(__dirname, "public", "uploads");
+fs.mkdirSync(uploadsDir, { recursive: true });
+
+fastify.register(require("@fastify/static"), {
+  root: uploadsDir,
+  prefix: "/uploads/",
+  decorateReply: false,
 });
 
 const frontendDist = path.join(__dirname, "frontend", "dist");

@@ -92,6 +92,20 @@ async function createTables(fastify) {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
 
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS question_images (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      question_id INT NOT NULL,
+      url VARCHAR(500) NOT NULL,
+      alt_text VARCHAR(255),
+      sort_order INT DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+      FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE,
+      INDEX idx_question_images_question (question_id),
+      INDEX idx_question_images_order (question_id, sort_order)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`)
+
     console.log("✅ Таблицы созданы/проверены");
   } finally {
     connection.release();

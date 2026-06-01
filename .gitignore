@@ -142,3 +142,5 @@ vite.config.ts.timestamp-*
 html-trials/*
 
 start-all.sh
+public/uploads/*
+!public/uploads/.gitkeep

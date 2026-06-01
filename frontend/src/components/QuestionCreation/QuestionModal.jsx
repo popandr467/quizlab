@@ -1,11 +1,12 @@
 // QuestionModal.jsx
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { Modal, Button, Form, InputGroup } from "react-bootstrap";
 import MarkdownEditorField from "../MarkdownEditorField";
 import TextQuestion from "./TextQuestion";
 import ChoiceQuestion from "./ChoiceQuestion";
 import MultiChoiceQuestion from "./MultiChoiceQuestion";
+import { api } from "../../api";
 
 const TYPE_SPECIFIC_DEFAULTS = Object.freeze({
   text: { correctAnswer: "" },
@@ -23,8 +24,11 @@ const DEFAULTS = Object.freeze({
   title: "",
   points: 0,
   type: "text",
+  images: [],
   type_specific: TYPE_SPECIFIC_DEFAULTS,
 });
+
+
 
 function fill_defaults(data) {
   const res = {
@@ -100,6 +104,53 @@ const QuestionModal = ({ show, onHide, onSubmit, initialData }) => {
     onHide(); // Закрываем окно после сохранения (родитель может переопределить)
   };
 
+  const {
+    fields: imageFields,
+    append: appendImage,
+    remove: removeImage,
+  } = useFieldArray({
+    control,
+    name: "images",
+  });
+
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  const handleImageUpload = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) return;
+
+    try {
+      setUploadingImage(true);
+
+      const result = await api.uploadImage(file);
+
+      appendImage({
+        url: result.url,
+        altText: "",
+        sortOrder: imageFields.length,
+      });
+    } catch (error) {
+      alert(error.message || "Не удалось загрузить картинку");
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const copyImageUrl = async (url) => {
+  try {
+    const absoluteUrl = new URL(url, window.location.origin).toString();
+
+    await navigator.clipboard.writeText(absoluteUrl);
+
+    alert("Ссылка на картинку скопирована");
+  } catch (error) {
+    console.error(error);
+    alert("Не удалось скопировать ссылку");
+  }
+};
+
   return (
     <Modal show={show} onHide={onHide} size="lg" centered>
       <Modal.Header closeButton>
@@ -139,6 +190,73 @@ const QuestionModal = ({ show, onHide, onSubmit, initialData }) => {
             <Form.Control.Feedback type="invalid">
               {errors.points?.message}
             </Form.Control.Feedback>
+          </Form.Group>
+
+          <Form.Group className="mb-3">
+            <Form.Label>Картинки к вопросу</Form.Label>
+
+            <Form.Control
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              onChange={handleImageUpload}
+              disabled={uploadingImage || imageFields.length >= 10}
+            />
+
+            <Form.Text className="text-muted">
+              Можно добавить до 10 картинок. Текст вопроса и варианты ответов по-прежнему могут содержать Markdown.
+            </Form.Text>
+
+            {imageFields.length > 0 && (
+              <div className="mt-3 d-flex flex-column gap-2">
+                {imageFields.map((field, index) => (
+                  <div key={field.id} className="border rounded p-2">
+                    <input type="hidden" {...register(`images.${index}.url`)} />
+                    <input
+                      type="hidden"
+                      {...register(`images.${index}.sortOrder`, {
+                        valueAsNumber: true,
+                      })}
+                    />
+
+                    <div className="d-flex gap-3 align-items-start">
+                      <img
+                        src={field.url}
+                        alt=""
+                        className="img-fluid rounded border"
+                        style={{ maxWidth: 180, maxHeight: 120, objectFit: "contain" }}
+                      />
+
+                      <div className="flex-grow-1">
+                        <Form.Control
+                          placeholder="Описание картинки, необязательно"
+                          {...register(`images.${index}.altText`)}
+                        />
+
+                        <div className="d-flex gap-2 mt-2">
+                          <Button
+                            type="button"
+                            variant="outline-secondary"
+                            size="sm"
+                            onClick={() => copyImageUrl(field.url)}
+                          >
+                            Скопировать ссылку
+                          </Button>
+
+                          <Button
+                            type="button"
+                            variant="outline-danger"
+                            size="sm"
+                            onClick={() => removeImage(index)}
+                          >
+                            Удалить картинку
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </Form.Group>
 
           {/* Тип вопроса */}
